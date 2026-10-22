@@ -3,6 +3,24 @@ import axios from "axios";
 import { useAuthStore } from "@/store/loggedInUser";
 import router from "@/router";
 
+//  decode JWT and check if it's expired
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(decodedJson);
+    
+    // Check expiration (exp is in seconds, Date.now() is in milliseconds)
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false; // Expired
+    }
+    return true;
+  } catch (e) {
+    return false; // Malformed token
+  }
+}
+
 // Create HTTP client with the base URL and JSON content type
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_ROOT_API,
@@ -11,10 +29,14 @@ const apiClient = axios.create({
   },
 });
 
-// Restore token from localStorage on initialization if present (Task F1)[cite: 4, 5]
+// Restore token from localStorage on initialization if present
 const savedToken = localStorage.getItem("authToken");
-if (savedToken) {
+if (savedToken && isTokenValid(savedToken)) {
   apiClient.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+} else if (savedToken) {
+  // Discard expired or tampered tokens so they don't cause crashes[cite: 5]
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("user");
 }
 
 // Centralized Axios response interceptor for error handling and 401 redirects

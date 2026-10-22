@@ -1,254 +1,102 @@
-// This file contains all API calls to the API endpoints
-import axios from "axios";
-import { useAuthStore } from "@/store/loggedInUser";
-import router from "@/router";
+import { createRouter, createWebHistory } from 'vue-router';
 
-// Create HTTP client with the base URL and JSON content type
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_ROOT_API,
-  headers: {
-    "Content-Type": "application/json",
+// decode JWT and check if it's expired
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(decodedJson);
+    
+    // Check expiration (exp is in seconds, Date.now() is in milliseconds)
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false; // Expired
+    }
+    return true;
+  } catch (e) {
+    return false; // Malformed token
+  }
+}
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/login.vue')
   },
+  {
+    path: '/',
+    name: 'Dashboard',
+    component: () => import('@/views/home.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/clients',
+    name: 'Clients',
+    component: () => import('@/views/findclient.vue'),
+    meta: { requiresAuth: true }
+  },
+  // Example of an editor-only route requiring explicit role enforcement
+  {
+    path: '/clientform',
+    name: 'ClientForm',
+    component: () => import('@/views/clientform.vue'),
+    meta: { requiresAuth: true, requiresEditor: true }
+  },
+  {
+    path: '/events',
+    name: 'Events',
+    component: () => import('@/views/findevents.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/services',
+    name: 'Services',
+    component: () => import('@/views/findservice.vue'),
+    meta: { requiresAuth: true }
+  },
+  // Catch-all 404 route
+  {
+    path: '/:catchAll(.*)',
+    name: 'NotFound',
+    component: () => import('@/views/NotFoundView.vue')
+  }
+];
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes
 });
 
-// Restore token from localStorage on initialization if present (Task F1)[cite: 4, 5]
-const savedToken = localStorage.getItem("authToken");
-if (savedToken) {
-  apiClient.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
-}
+// Global Navigation Guard for Authentication and Roles
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('authToken');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const loggedIn = !!token && isTokenValid(token);
 
-// Centralized Axios response interceptor for error handling and 401 redirects (Tasks F2, F4, R4)[cite: 4, 5]
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Check if the backend is completely down / unreachable (Task F5)[cite: 5]
-    if (!error.response) {
-      return Promise.reject(new Error("Unable to reach the server"));
-    }
-
-    const { status, data } = error.response;
-
-    // Handle 401 Unauthorized: clear session and redirect to login (Task F1/F4)[cite: 4, 5]
-    if (status === 401) {
-      localStorage.removeItem("authToken");
-      delete apiClient.defaults.headers.common["Authorization"];
-      try {
-        const authStore = useAuthStore();
-        if (authStore && typeof authStore.clearSession === "function") {
-          authStore.clearSession();
-        }
-      } catch (e) {
-        // Fallback if store isn't initialized yet
-      }
-      if (router.currentRoute.value.name !== "Login") {
-        router.push({ name: "Login" });
-      }
-    }
-
-    // Extract a clean, human-readable error message (Task F2)[cite: 4, 5]
-    let errorMessage = "An unexpected error occurred";
-    if (typeof data === "string") {
-      errorMessage = data;
-    } else if (data && data.message) {
-      errorMessage = data.message;
-    } else if (data && data.errors && data.errors.length > 0) {
-      errorMessage = data.errors[0].msg;
-    }
-
-    return Promise.reject(new Error(errorMessage));
+  // If token is invalid or expired, clean it up from storage
+  if (token && !loggedIn) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
   }
-);
 
-// Login related API calls
-export async function loginUser(username, password) {
-  const response = await apiClient.post("/users/login", {
-    username,
-    password,
-  });
-  const token = response.data.token;
-  localStorage.setItem("authToken", token);
-  apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  return token;
-}
-
-export function logoutUser() {
-  localStorage.removeItem("authToken");
-  delete apiClient.defaults.headers.common["Authorization"];
-}
-
-// Org related API calls
-export async function getOrgName() {
-  const response = await apiClient.get(`/org`);
-  return response.data;
-}
-
-// Events related API calls
-export const getEvents = async () => {
-  const response = await apiClient.get("/events/");
-  return response.data;
-};
-
-export const getEventById = async (id) => {
-  const response = await apiClient.get(`/events/id/${id}`);
-  return response.data;
-};
-
-export const searchEvents = async (query) => {
-  let params = {};
-  if (query.searchBy === "name") {
-    params.searchBy = query.searchBy;
-    params.name = query.name || "";
-  } else if (query.searchBy === "date") {
-    params.searchBy = "date";
-    params.eventDate = query.eventDate || "";
+  // Check if route requires authentication
+  if (to.meta.requiresAuth && !loggedIn) {
+    return next({ name: 'Login' });
   }
-  const response = await apiClient.get(`/events/search`, { params });
-  return response.data;
-};
 
-export const getClientEvents = async (id) => {
-  const response = await apiClient.get(`/events/client/${id}`);
-  return response.data;
-};
-
-export const getNonClientEvents = async (id) => {
-  const response = await apiClient.get(`/events/client/${id}/not-registered`);
-  return response.data;
-};
-
-export const getEventAttendees = async (id) => {
-  const response = await apiClient.get(`/events/attendees/${id}`);
-  return response.data;
-};
-
-export const getEventsByServiceId = async (id) => {
-  const response = await apiClient.get(`/events/service/${id}`);
-  return response.data;
-};
-
-export const createEvent = async (eventData) => {
-  const response = await apiClient.post("/events/", eventData);
-  return response.data;
-};
-
-export const updateEvent = async (id, eventData) => {
-  const response = await apiClient.put(`/events/update/${id}`, eventData);
-  return response.data;
-};
-
-export const registerAttendee = async (eventId, clientId) => {
-  const response = await apiClient.put(
-    `/events/register`,
-    {},
-    {
-      params: { event: eventId, client: clientId },
-    }
-  );
-  return response.data;
-};
-
-export const deregisterAttendee = async (eventId, clientId) => {
-  const response = await apiClient.put(
-    `/events/deregister`,
-    {},
-    {
-      params: { event: eventId, client: clientId },
-    }
-  );
-  return response.data;
-};
-
-export const deleteEvent = async (id) => {
-  const response = await apiClient.delete(`/events/${id}`);
-  return response.data;
-};
-
-export const getAttendance = async () => {
-  const response = await apiClient.get("/events/attendance");
-  return response.data;
-};
-
-// Clients related API calls
-export const getClients = async () => {
-  const response = await apiClient.get("clients");
-  return response.data;
-};
-
-export const getClientById = async (id) => {
-  const response = await apiClient.get(`/clients/id/${id}`);
-  return response.data;
-};
-
-export const searchClients = async (query) => {
-  let params = {};
-  if (query.searchBy === "name") {
-    params.searchBy = query.searchBy;
-    params.firstName = query.firstName || "";
-    params.lastName = query.lastName || "";
-  } else if (query.searchBy === "number") {
-    params.searchBy = query.searchBy;
-    params.phoneNumber = query.phoneNumber || "";
+  // Check if route requires editor role
+  if (to.meta.requiresEditor && user.role !== 'editor') {
+    // Viewer trying to access an editor route gets redirected to Dashboard
+    return next({ name: 'Dashboard' });
   }
-  const response = await apiClient.get("/clients/search", { params });
-  return response.data;
-};
 
-export const createClient = async (newClient) => {
-  const response = await apiClient.post("/clients", newClient);
-  return response.data;
-};
-
-export const updateClient = async (id, updatedClient) => {
-  const response = await apiClient.put(`/clients/update/${id}`, updatedClient);
-  return response.data;
-};
-
-export const deleteClientbyId = async (id) => {
-  const response = await apiClient.delete(`/clients/${id}`);
-  return response.data;
-};
-
-export const getClientsByZipCode = async () => {
-  const response = await apiClient.get("/clients/byzip");
-  return response.data;
-};
-
-// Services related API calls
-export const getServices = async () => {
-  const response = await apiClient.get("/services/");
-  return response.data;
-};
-
-export const getServiceById = async (id) => {
-  const response = await apiClient.get(`/services/id/${id}`);
-  return response.data;
-};
-
-export const searchServices = async (query) => {
-  let params = {};
-  params.searchBy = query.searchBy;
-  if (query.searchBy === "name") {
-    params.name = query.name || "";
-  } else if (query.searchBy === "description") {
-    params.description = query.description;
+  // Prevent logged-in users from going back to the login page
+  if (to.name === 'Login' && loggedIn) {
+    return next({ name: 'Dashboard' });
   }
-  const response = await apiClient.get("/services/search", { params });
-  return response.data;
-};
 
-export const createService = async (newService) => {
-  const response = await apiClient.post("/services", newService);
-  return response.data;
-};
+  next();
+});
 
-export const updateService = async (id, updatedService) => {
-  const response = await apiClient.put(`/services/update/${id}`, updatedService);
-  return response.data;
-};
-
-export const deleteService = async (id) => {
-  const response = await apiClient.delete(`/services/${id}`);
-  return response.data;
-};
-
-export default apiClient;
+export default router;
