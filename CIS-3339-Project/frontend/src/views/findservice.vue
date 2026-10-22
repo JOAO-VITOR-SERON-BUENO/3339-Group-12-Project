@@ -83,79 +83,74 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue'
 import { getServices, searchServices } from '../api/api'
 import { useToast } from 'vue-toastification'
 
 //Notifications
 const toast = useToast()
 
-export default {
-  data() {
-    return {
-      //variable to hold the services for the organization
-      services: null,
-      // Parameters for search to occur
-      searchBy: null,
-      name: null,
-      description: null,
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data
-    this.loadData();
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets all the variables
-      this.searchBy = ''
-      this.name = ''
-      this.description = ''
+//variable to hold the services for the organization
+const services = ref(null)
+// Parameters for search to occur
+const searchBy = ref(null)
+const name = ref(null)
+const description = ref(null)
+// variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
+const hoverId = ref(null)
 
-      // get list of services
+// method called when component is mounted
+async function loadData() {
+  // Resets all the variables
+  searchBy.value = ''
+  name.value = ''
+  description.value = ''
+
+  // get list of services
+  try {
+    const response = await getServices();
+    services.value = response;
+  } catch (error) {
+    toast.error(error)
+  }
+}
+
+// method called when user searches for a service
+async function handleSubmitForm() {
+  // if user searches by service name
+  if (searchBy.value === 'Service Name') {
+    if (name.value) {
       try {
-        const response = await getServices();
-        this.services = response;
+        const query = {
+          searchBy: 'name',
+          name: name.value
+        }
+        const response = await searchServices(query)
+        services.value = response;
       } catch (error) {
         toast.error(error)
       }
-    },
-
-    // method called when user searches for a service
-    async handleSubmitForm() {
-      // if user searches by service name
-      if (this.searchBy === 'Service Name') {
-        if (this.name) {
-          try {
-            const query = {
-              searchBy: 'name',
-              name: this.name
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error(error)
-          }
+    }
+    // if user searches by service description
+  } else if (searchBy.value === 'Service Description') {
+    if (description.value) {
+      try {
+        const query = {
+          searchBy: 'description',
+          description: description.value
         }
-        // if user searches by service description
-      } else if (this.searchBy === 'Service Description') {
-        if (this.description) {
-          try {
-            const query = {
-              searchBy: 'description',
-              description: this.description
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error('Error searching services:', error)
-          }
-        }
+        const response = await searchServices(query)
+        services.value = response;
+      } catch (error) {
+        toast.error('Error searching services:', error)
       }
-    },
-  },
+    }
+  }
 }
+
+// when component is mounted, load the data
+onMounted(() => {
+  loadData();
+})
 </script>
