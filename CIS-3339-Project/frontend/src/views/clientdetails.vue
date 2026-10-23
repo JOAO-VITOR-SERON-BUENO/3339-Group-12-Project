@@ -228,6 +228,7 @@
       </div>
 
     </div>
+    <ConfirmationModal ref="confirmationModal" />
   </main>
 </template>
 
@@ -238,6 +239,7 @@ import VueMultiselect from 'vue-multiselect'
 import { useLoggedInUserStore } from "../store/loggedInUser";
 import { getClientById, getClientEvents, getNonClientEvents, registerAttendee, deregisterAttendee, updateClient, deleteClientbyId } from '../api/api'
 import { useToast } from 'vue-toastification'
+import ConfirmationModal from '../components/ConfirmationModal.vue'
 
 //Notifications
 const toast = useToast()
@@ -246,6 +248,7 @@ export default {
   // register components
   components: {
     VueMultiselect,
+    ConfirmationModal
   },
   setup() {
     // register Vuelidate and loggedIn store
@@ -405,6 +408,13 @@ export default {
 
     // method called when user attempts to delete client
     async submitDeleteClient() {
+      const confirmed = await this.$refs.confirmationModal.confirm({
+        title: 'Delete client?',
+        message: `Are you sure you want to delete ${this.client.firstName} ${this.client.lastName}? This action cannot be undone.`,
+        confirmText: 'Delete Client'
+      })
+      if (!confirmed) return
+
       try {
         const response = await deleteClientbyId(this.$route.params.id);
         toast.success(response)

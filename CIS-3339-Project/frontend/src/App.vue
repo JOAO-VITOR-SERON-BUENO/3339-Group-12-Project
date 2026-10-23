@@ -92,10 +92,6 @@
 <script>
 import { useLoggedInUserStore } from './store/loggedInUser'
 import { getOrgName } from './api/api'
-import { useToast } from 'vue-toastification'
-
-//Notifications
-const toast = useToast()
 
 export default {
   setup() {
@@ -114,16 +110,6 @@ export default {
       throw (error)
     }
   },
-  methods: {
-    logout() {
-      try {
-        this.$store.dispatch('clearSessionData');
-        this.$router.push('/')
-      } catch (error) {
-        toast.error('logout error', error)
-      }
-    },
-  }
 }
 </script>
 

@@ -7,58 +7,14 @@
         Find Client
       </h1>
     </div>
-    <div class="px-10 pt-20">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <!--Search Client By selection-->
-        <h2 class="text-2xl font-bold">Search Client By</h2>
-        <!-- Displays Client Name search field -->
-        <div class="flex flex-col">
-          <select
-            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            v-model="searchBy">
-            <option value="Client Name">Client Name</option>
-            <option value="Client Number">Client Number</option>
-          </select>
-        </div>
-        <!--Input box for searching by Client First Name-->
-        <div class="flex flex-col" v-if="searchBy === 'Client Name'">
-          <label class="block">
-            <input type="text"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              v-model="firstName" v-on:keyup.enter="handleSubmitForm" placeholder="Enter first name" />
-          </label>
-        </div>
-        <!--Input box for searching by Client Last Name-->
-        <div class="flex flex-col" v-if="searchBy === 'Client Name'">
-          <label class="block">
-            <input type="text"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              v-model="lastName" v-on:keyup.enter="handleSubmitForm" placeholder="Enter last name" />
-          </label>
-        </div>
-        <!-- Displays Client Number search field -->
-        <div class="flex flex-col" v-if="searchBy === 'Client Number'">
-          <input
-            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            type="text" v-model="phoneNumber" v-on:keyup.enter="handleSubmitForm"
-            placeholder="Enter Client Phone Number" />
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <div></div>
-        <div></div>
-        <!--Clear Search button-->
-        <div class="mt-5 grid-cols-2">
-          <button class="mr-10 border border-red-700 bg-white text-red-700 rounded" @click="loadData" type="submit">
-            Clear Search
-          </button>
-          <!--Search Client button-->
-          <button class="bg-red-700 text-white rounded" @click="handleSubmitForm" type="submit">
-            Search Client
-          </button>
-        </div>
-      </div>
-    </div>
+    <SearchBar
+      v-model="searchParams"
+      search-by-label="Search Client By"
+      :options="searchOptions"
+      :fields="searchFields"
+      search-label="Search Client"
+      @search="handleSubmitForm"
+      @clear="loadData" />
 
     <hr class="mt-10 mb-10" />
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
@@ -98,20 +54,46 @@
 <script>
 import { getClients, searchClients } from '../api/api'
 import { useToast } from 'vue-toastification'
+import SearchBar from '../components/SearchBar.vue'
 
 //Notifications
 const toast = useToast()
 
 export default {
+  components: {
+    SearchBar
+  },
   data() {
     return {
       //variable to store all clients and their information for the organization
       clients: null,
-      // Parameters for search to occur
-      searchBy: '',
-      firstName: '',
-      lastName: '',
-      phoneNumber: '',
+      searchParams: {
+        searchBy: '',
+        firstName: '',
+        lastName: '',
+        phoneNumber: ''
+      },
+      searchOptions: [
+        { value: 'Client Name', label: 'Client Name' },
+        { value: 'Client Number', label: 'Client Number' }
+      ],
+      searchFields: [
+        {
+          key: 'firstName',
+          placeholder: 'Enter first name',
+          showWhen: { key: 'searchBy', value: 'Client Name' }
+        },
+        {
+          key: 'lastName',
+          placeholder: 'Enter last name',
+          showWhen: { key: 'searchBy', value: 'Client Name' }
+        },
+        {
+          key: 'phoneNumber',
+          placeholder: 'Enter Client Phone Number',
+          showWhen: { key: 'searchBy', value: 'Client Number' }
+        }
+      ],
       // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
       hoverId: null,
     }
@@ -124,10 +106,12 @@ export default {
     // method called when component is mounted
     async loadData() {
       // Resets all the variables
-      this.searchBy = ''
-      this.firstName = ''
-      this.lastName = ''
-      this.phoneNumber = ''
+      this.searchParams = {
+        searchBy: '',
+        firstName: '',
+        lastName: '',
+        phoneNumber: ''
+      }
 
       // get list of clients
       try {
@@ -140,13 +124,13 @@ export default {
     // method called when user searches for clients
     async handleSubmitForm() {
       // if user searched by client name
-      if (this.searchBy === 'Client Name') {
-        if (this.firstName || this.lastName) {
+      if (this.searchParams.searchBy === 'Client Name') {
+        if (this.searchParams.firstName || this.searchParams.lastName) {
           try {
             const query = {
               searchBy: 'name',
-              firstName: this.firstName,
-              lastName: this.lastName,
+              firstName: this.searchParams.firstName,
+              lastName: this.searchParams.lastName,
             }
             const response = await searchClients(query)
             this.clients = response;
@@ -155,12 +139,12 @@ export default {
           }
         }
         // if user searches by client phone number
-      } else if (this.searchBy === 'Client Number') {
-        if (this.phoneNumber) {
+      } else if (this.searchParams.searchBy === 'Client Number') {
+        if (this.searchParams.phoneNumber) {
           try {
             const query = {
               searchBy: 'number',
-              phoneNumber: this.phoneNumber
+              phoneNumber: this.searchParams.phoneNumber
             }
             const response = await searchClients(query)
             this.clients = response;
