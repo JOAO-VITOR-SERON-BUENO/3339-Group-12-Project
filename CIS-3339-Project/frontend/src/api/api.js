@@ -34,7 +34,7 @@ const savedToken = localStorage.getItem("authToken");
 if (savedToken && isTokenValid(savedToken)) {
   apiClient.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 } else if (savedToken) {
-  // Discard expired or tampered tokens so they don't cause crashes[cite: 5]
+  // Discard expired or tampered tokens so they don't cause crashes
   localStorage.removeItem("authToken");
   localStorage.removeItem("user");
 }

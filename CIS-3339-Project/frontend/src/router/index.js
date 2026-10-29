@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-// decode JWT and check if it's expired
+// Helper to decode JWT and check expiration
 function isTokenValid(token) {
   if (!token) return false;
   try {
@@ -8,7 +8,6 @@ function isTokenValid(token) {
     const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(decodedJson);
     
-    // Check expiration (exp is in seconds, Date.now() is in milliseconds)
     if (payload.exp && Date.now() >= payload.exp * 1000) {
       return false; // Expired
     }
@@ -36,12 +35,23 @@ const routes = [
     component: () => import('@/views/findclient.vue'),
     meta: { requiresAuth: true }
   },
-  // Example of an editor-only route requiring explicit role enforcement
   {
     path: '/clientform',
     name: 'ClientForm',
     component: () => import('@/views/clientform.vue'),
-    meta: { requiresAuth: true, requiresEditor: true }
+    meta: { requiresAuth: true, requiresRole: 'editor' }
+  },
+  {
+    path: '/eventform',
+    name: 'EventForm',
+    component: () => import('@/views/eventform.vue'),
+    meta: { requiresAuth: true, requiresRole: 'editor' }
+  },
+  {
+    path: '/serviceform',
+    name: 'ServiceForm',
+    component: () => import('@/views/serviceform.vue'),
+    meta: { requiresAuth: true, requiresRole: 'editor' }
   },
   {
     path: '/events',
@@ -74,24 +84,20 @@ router.beforeEach((to, from, next) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const loggedIn = !!token && isTokenValid(token);
 
-  // If token is invalid or expired, clean it up from storage
   if (token && !loggedIn) {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   }
 
-  // Check if route requires authentication
   if (to.meta.requiresAuth && !loggedIn) {
     return next({ name: 'Login' });
   }
 
-  // Check if route requires editor role
-  if (to.meta.requiresEditor && user.role !== 'editor') {
-    // Viewer trying to access an editor route gets redirected to Dashboard
+  // Enforce role check using requiresRole
+  if (to.meta.requiresRole && user.role !== to.meta.requiresRole) {
     return next({ name: 'Dashboard' });
   }
 
-  // Prevent logged-in users from going back to the login page
   if (to.name === 'Login' && loggedIn) {
     return next({ name: 'Dashboard' });
   }

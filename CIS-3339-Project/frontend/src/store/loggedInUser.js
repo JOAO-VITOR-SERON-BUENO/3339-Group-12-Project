@@ -7,6 +7,27 @@ import jwt_decode from 'jwt-decode'; // import JSON Web Token decoder to decode 
 //Notifications
 const toast = useToast()
 
+// Helper to check token validity and expiration on startup
+function getValidDecodedToken() {
+  const token = localStorage.getItem("authToken");
+  if (!token) return null;
+  try {
+    const decoded = jwt_decode(token);
+    // Check if token has expired (exp is in seconds, Date.now() in milliseconds)
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      localStorage.removeItem("authToken");
+      return null;
+    }
+    return decoded;
+  } catch (e) {
+    localStorage.removeItem("authToken");
+    return null;
+  }
+}
+
+// Pre-load decoded token state on initialization
+const initialDecoded = getValidDecodedToken();
+
 // Defining a store
 export const useLoggedInUserStore = defineStore({
   id: 'loggedInUser',
