@@ -109,7 +109,7 @@ student can explain in a sentence or two how they proved the method was unreacha
 
 ## F4 — Error toasts display `[object Object]`
 
-**Difficulty:** Beginner
+**Difficulty:** 
 **Files:** all of `src/views/`, `src/App.vue`
 **Concepts:** reading library docs, error object shapes, string coercion
 

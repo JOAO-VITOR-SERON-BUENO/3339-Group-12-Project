@@ -228,6 +228,7 @@
       </div>
 
     </div>
+    <ConfirmationModal ref="confirmationModal" />
   </main>
 </template>
 
@@ -240,11 +241,15 @@ import VueMultiselect from 'vue-multiselect'
 import { useLoggedInUserStore } from "../store/loggedInUser";
 import { getClientById, getClientEvents, getNonClientEvents, registerAttendee, deregisterAttendee, updateClient, deleteClientbyId } from '../api/api'
 import { useToast } from 'vue-toastification'
+import ConfirmationModal from '../components/ConfirmationModal.vue'
 
 //Notifications
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
+
+// confirmation dialog shown before deleting
+const confirmationModal = ref(null)
 const user = useLoggedInUserStore();
 
 // events that the client is not registered in - to be shown in the multiselect
@@ -401,6 +406,13 @@ async function submitUpdateClient() {
 
 // method called when user attempts to delete client
 async function submitDeleteClient() {
+  const confirmed = await confirmationModal.value.confirm({
+    title: 'Delete client?',
+    message: `Are you sure you want to delete ${client.firstName} ${client.lastName}? This action cannot be undone.`,
+    confirmText: 'Delete Client'
+  })
+  if (!confirmed) return
+
   try {
     const response = await deleteClientbyId(route.params.id);
     toast.success(response)

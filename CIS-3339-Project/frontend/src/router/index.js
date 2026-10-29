@@ -1,89 +1,132 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useLoggedInUserStore } from '../store/loggedInUser'
+import { createRouter, createWebHistory } from 'vue-router';
+import { useLoggedInUserStore } from '@/store/loggedInUser';
 
-// make all paths and names lowercase for consistency
+// Helper to decode JWT and check expiration
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(decodedJson);
+    
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false; // Expired
+    }
+    return true;
+  } catch (e) {
+    return false; // Malformed token
+  }
+}
+
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/login.vue')
+  },
+  {
     path: '/',
-    component: () => import('../views/home.vue')
+    name: 'Dashboard',
+    component: () => import('@/views/home.vue'),
+    meta: { requiresAuth: true }
   },
   {
-    path: "/login",
-    name: "login",
-    component: () => import('../views/login.vue')
-  },
-  {
-    path: '/clientform',
-    name: 'clientform',
-    // only authenticated users can create clients
-    meta: { requiresAuth: true },
-    component: () => import('../views/clientform.vue')
-  },
-  {
-    path: '/findclient',
-    name: 'findclient',
-    meta: { requiresAuth: true },
-    component: () => import('../views/findclient.vue')
+    path: '/clients',
+    // alias keeps the existing nav links and view redirects working
+    alias: '/findclient',
+    name: 'Clients',
+    component: () => import('@/views/findclient.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/clientdetails/:id',
     name: 'clientdetails',
-    meta: { requiresAuth: true },
-    component: () => import('../views/clientdetails.vue')
+    component: () => import('@/views/clientdetails.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/clientform',
+    name: 'ClientForm',
+    component: () => import('@/views/clientform.vue'),
+    meta: { requiresAuth: true, requiresRole: 'editor' }
   },
   {
     path: '/eventform',
-    name: 'eventform',
-    meta: { requiresAuth: true },
-    component: () => import('../views/eventform.vue')
+    name: 'EventForm',
+    component: () => import('@/views/eventform.vue'),
+    meta: { requiresAuth: true, requiresRole: 'editor' }
   },
   {
-    path: '/findevents',
-    name: 'findevents',
-    meta: { requiresAuth: true },
-    component: () => import('../views/findevents.vue')
+    path: '/serviceform',
+    name: 'ServiceForm',
+    component: () => import('@/views/serviceform.vue'),
+    meta: { requiresAuth: true, requiresRole: 'editor' }
+  },
+  {
+    path: '/events',
+    alias: '/findevents',
+    name: 'Events',
+    component: () => import('@/views/findevents.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/eventdetails/:id',
     name: 'eventdetails',
-    meta: { requiresAuth: true },
-    component: () => import('../views/eventdetails.vue')
+    component: () => import('@/views/eventDetails.vue'),
+    meta: { requiresAuth: true }
   },
   {
-    path: '/serviceform',
-    name: 'serviceform',
-    meta: { requiresAuth: true },
-    component: () => import('../views/serviceform.vue')
-  },
-  {
-    path: '/findservice',
-    name: 'findservice',
-    meta: { requiresAuth: true },
-    component: () => import('../views/findservice.vue')
+    path: '/services',
+    alias: '/findservice',
+    name: 'Services',
+    component: () => import('@/views/findservice.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/servicedetails/:id',
     name: 'servicedetails',
-    meta: { requiresAuth: true },
-    component: () => import('../views/servicedetails.vue')
+    component: () => import('@/views/servicedetails.vue'),
+    meta: { requiresAuth: true }
+  },
+  // Catch-all 404 route
+  {
+    path: '/:catchAll(.*)',
+    name: 'NotFound',
+    component: () => import('@/views/NotFoundView.vue')
   }
-]
+];
+
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
-})
+});
 
-// protecting the routes
-router.beforeEach((to) => {
-  const store = useLoggedInUserStore()
-  if (to.meta.requiresAuth && !store.isLoggedIn) {
-    return {
-      path: '/login',
-      // save the location we were at to come back later
-      query: { redirect: to.fullPath },
-    }
+// Global Navigation Guard for Authentication and Roles
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('authToken');
+  // role comes from the Pinia store (restored from the JWT on startup)
+  const user = useLoggedInUserStore();
+  const loggedIn = !!token && isTokenValid(token);
+
+  if (token && !loggedIn) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
   }
-})
 
-export default router
+  if (to.meta.requiresAuth && !loggedIn) {
+    return next({ name: 'Login' });
+  }
 
+  // Enforce role check using requiresRole
+  if (to.meta.requiresRole && user.role !== to.meta.requiresRole) {
+    return next({ name: 'Dashboard' });
+  }
+
+  if (to.name === 'Login' && loggedIn) {
+    return next({ name: 'Dashboard' });
+  }
+
+  next();
+});
+
+export default router;

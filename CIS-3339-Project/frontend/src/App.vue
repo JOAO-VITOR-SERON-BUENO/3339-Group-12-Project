@@ -98,16 +98,19 @@ import { useToast } from 'vue-toastification'
 //Notifications
 const toast = useToast()
 
-const user = useLoggedInUserStore();
-const orgName = ref("Dataplatform");
+// Pinia store - the nav uses it for login state, role, and logout
+const user = useLoggedInUserStore()
 
-// load the organization name when the app starts
+// Organization name shown in the header - default until the API responds
+const orgName = ref('Dataplatform')
+
+// Load the organization name when the app starts
 async function loadOrgName() {
   try {
-    orgName.value = await getOrgName();
+    orgName.value = await getOrgName()
   } catch (error) {
-    console.error(error)
-    toast.error('Unable to load organization name')
+    console.error('Failed to load organization name:', error)
+    toast.error(`Unable to load organization name: ${error.message}`)
   }
 }
 loadOrgName()

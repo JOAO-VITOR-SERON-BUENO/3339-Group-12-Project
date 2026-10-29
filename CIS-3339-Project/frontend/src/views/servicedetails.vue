@@ -113,6 +113,7 @@
         </table>
       </div>
     </div>
+    <ConfirmationModal ref="confirmationModal" />
   </main>
 </template>
 
@@ -124,11 +125,15 @@ import { required } from '@vuelidate/validators'
 import { useLoggedInUserStore } from "../store/loggedInUser";
 import { getServiceById, getEventsByServiceId, updateService, deleteService } from '../api/api'
 import { useToast } from 'vue-toastification'
+import ConfirmationModal from '../components/ConfirmationModal.vue'
 
 //Notifications
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
+
+// confirmation dialog shown before deleting
+const confirmationModal = ref(null)
 const user = useLoggedInUserStore();
 
 //variable to store service information
@@ -203,6 +208,14 @@ async function submitDeleteService() {
       toast.info('Service can not be deleted since it is being used by events.')
       return
     }
+
+    const confirmed = await confirmationModal.value.confirm({
+      title: 'Delete service?',
+      message: `Are you sure you want to delete ${service.name}? This action cannot be undone.`,
+      confirmText: 'Delete Service'
+    })
+    if (!confirmed) return
+
     const response = await deleteService(route.params.id);
     toast.success(response)
     router.push('/findservice')

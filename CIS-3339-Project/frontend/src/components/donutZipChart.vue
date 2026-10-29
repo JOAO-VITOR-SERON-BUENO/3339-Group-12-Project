@@ -5,33 +5,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
 //define props (label and chartData)
 const props = defineProps({
   label: {
-    type: Array
+    type: Array,
+    default: () => []
   },
   chartData: {
-    type: Array
+    type: Array,
+    default: () => []
   }
 })
 
-// template ref for the canvas element
+// canvas element the chart is drawn on
 const zipChart = ref(null)
+// Chart.js instance - kept out of Vue reactivity on purpose
 let chart = null
 
 onMounted(() => { //uses the data to load the chart's values
   chart = new Chart(zipChart.value, {
     type: 'doughnut',
     data: {
-      labels: props.label,
+      labels: [...props.label],
       datasets: [
         {
           borderWidth: 1,
-          data: props.chartData
+          data: [...props.chartData]
         }
       ]
     },
@@ -51,17 +54,23 @@ onMounted(() => { //uses the data to load the chart's values
   })
 })
 
-// redraw the chart when the data passed in changes
-watch(() => [props.label, props.chartData], () => {
-  if (!chart) return
-  chart.data.labels = props.label
-  chart.data.datasets[0].data = props.chartData
-  chart.update()
-})
+// update the existing chart in place when the props change
+watch(
+  [() => props.label, () => props.chartData],
+  ([label, chartData]) => {
+    if (!chart) return
+    chart.data.labels = [...label]
+    chart.data.datasets[0].data = [...chartData]
+    chart.update()
+  },
+  { deep: true }
+)
 
-// free the Chart.js instance when the component is removed
+// destroy the chart so the canvas and its listeners are released
 onBeforeUnmount(() => {
-  if (chart) chart.destroy()
-  chart = null
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
 })
 </script>
