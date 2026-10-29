@@ -94,7 +94,7 @@ organization and users, and the configuration in `CIS-3339-Project/backend/.env`
 | Diego Gonzalez | F1 (`App.vue`, dashboard, chart components) and D2 (production build, deployment docs) |
 | Long Tran | F1 (CRUD views, forms, detail pages, login) |
 | Joao Vitor Seron Bueno | F2 (`useApi()` composable, centralized Axios error handling) |
-| Alex | F4 (session restoration, router guards, editor-only routes) |
+| Alexander Tran | F4 (session restoration, router guards, editor-only routes) |
 | Krishna | F3 / C2 / C3 (reusable components: SearchBar, ConfirmationModal) |
 
 ## Known limitations
