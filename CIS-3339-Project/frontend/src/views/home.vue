@@ -179,7 +179,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AttendanceChart from '../components/barChart.vue'
@@ -260,9 +260,10 @@ function editEvent(id) {
   })
 }
 
-// Load dashboard data when page opens
-onMounted(() => {
-  loadAttendance()
-  loadZipData()
-})
+// Load dashboard data when page opens.
+// Started during setup (not onMounted) so that execute() flips loading to true
+// before the first render - otherwise the first frame shows the empty state
+// ("No events found.") because loading starts as false and data as null.
+loadAttendance()
+loadZipData()
 </script>
