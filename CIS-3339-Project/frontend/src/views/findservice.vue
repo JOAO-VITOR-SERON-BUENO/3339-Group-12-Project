@@ -7,50 +7,14 @@
         Find Services
       </h1>
     </div>
-    <div class="px-10 pt-20">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <h2 class="text-2xl font-bold">Search Service By</h2>
-        <!-- Displays Service Name and Description selection -->
-        <div class="flex flex-col">
-          <select
-            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            v-model="searchBy">
-            <option value="Service Name">Service Name</option>
-            <option value="Service Description">Service Description</option>
-          </select>
-        </div>
-        <!--Display service name search field-->
-        <div class="flex flex-col" v-if="searchBy === 'Service Name'">
-          <label class="block">
-            <input type="text"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              v-model="name" v-on:keyup.enter="handleSubmitForm" placeholder="Enter service name" />
-          </label>
-        </div>
-        <!--Display service description search field-->
-        <div class="flex flex-col" v-if="searchBy === 'Service Description'">
-          <label class="block">
-            <input type="text"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              v-model="description" v-on:keyup.enter="handleSubmitForm" placeholder="Enter service description" />
-          </label>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <div></div>
-        <div></div>
-        <div class="mt-5 grid-cols-2">
-          <!--Clear Search button-->
-          <button class="mr-10 border border-red-700 bg-white text-red-700 rounded" @click="loadData" type="submit">
-            Clear Search
-          </button>
-          <!--Search Service button-->
-          <button class="bg-red-700 text-white rounded" @click="handleSubmitForm" type="submit">
-            Search Service
-          </button>
-        </div>
-      </div>
-    </div>
+    <SearchBar
+      v-model="searchParams"
+      search-by-label="Search Service By"
+      :options="searchOptions"
+      :fields="searchFields"
+      search-label="Search Service"
+      @search="handleSubmitForm"
+      @clear="loadData" />
 
     <hr class="mt-10 mb-10" />
     <!-- Display Found Data -->
@@ -137,14 +101,31 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getServices, searchServices } from '../api/api'
 import { useApi } from '../composables/useApi'
+import SearchBar from '../components/SearchBar.vue'
 
 // Vue Router for navigating to service details
 const router = useRouter()
 
-// Search form variables
-const searchBy = ref('')
-const name = ref('')
-const description = ref('')
+// Search form values, bound to the SearchBar component
+const searchParams = ref({ searchBy: '', name: '', description: '' })
+
+// Choices and inputs rendered by the SearchBar
+const searchOptions = [
+  { value: 'Service Name', label: 'Service Name' },
+  { value: 'Service Description', label: 'Service Description' }
+]
+const searchFields = [
+  {
+    key: 'name',
+    placeholder: 'Enter service name',
+    showWhen: { key: 'searchBy', value: 'Service Name' }
+  },
+  {
+    key: 'description',
+    placeholder: 'Enter service description',
+    showWhen: { key: 'searchBy', value: 'Service Description' }
+  }
+]
 
 // Highlight the row under the mouse
 const hoverId = ref(null)
@@ -171,9 +152,7 @@ const services = computed(() => data.value ?? [])
 
 // Reset search and load all services
 async function loadData() {
-  searchBy.value = ''
-  name.value = ''
-  description.value = ''
+  searchParams.value = { searchBy: '', name: '', description: '' }
 
   currentQuery.value = null
 
@@ -182,24 +161,24 @@ async function loadData() {
 
 // Search services by name or description
 async function handleSubmitForm() {
-  if (searchBy.value === 'Service Name') {
-    if (!name.value) {
+  if (searchParams.value.searchBy === 'Service Name') {
+    if (!searchParams.value.name) {
       return
     }
 
     currentQuery.value = {
       searchBy: 'name',
-      name: name.value
+      name: searchParams.value.name
     }
 
-  } else if (searchBy.value === 'Service Description') {
-    if (!description.value) {
+  } else if (searchParams.value.searchBy === 'Service Description') {
+    if (!searchParams.value.description) {
       return
     }
 
     currentQuery.value = {
       searchBy: 'description',
-      description: description.value
+      description: searchParams.value.description
     }
 
   } else {

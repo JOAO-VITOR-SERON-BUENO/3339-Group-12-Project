@@ -191,6 +191,7 @@
         </div>
       </div>
     </div>
+    <ConfirmationModal ref="confirmationModal" />
   </main>
 </template>
 
@@ -201,11 +202,15 @@ import { required } from '@vuelidate/validators'
 import { useLoggedInUserStore } from "../store/loggedInUser";
 import { getEventById, getEventAttendees, getServices, updateEvent, deleteEvent } from '../api/api'
 import { useToast } from 'vue-toastification'
+import ConfirmationModal from '../components/ConfirmationModal.vue'
 
 //Notifications
 const toast = useToast()
 
 export default {
+  components: {
+    ConfirmationModal
+  },
   data() {
     return {
       //variable to hold clients for selected event
@@ -297,11 +302,19 @@ export default {
     // method to make the API call to delete the event - can only be deleted if no attendees are in event
     async submitDeleteEvent() {
       try {
-        if (this.event.attendees != 0)
+        if (this.clients.length > 0)
         {
           toast.info('Event can not be deleted since it has attendees.')
           return
         }
+
+        const confirmed = await this.$refs.confirmationModal.confirm({
+          title: 'Delete event?',
+          message: `Are you sure you want to delete ${this.event.name}? This action cannot be undone.`,
+          confirmText: 'Delete Event'
+        })
+        if (!confirmed) return
+
         const response = await deleteEvent(this.$route.params.id);
         toast.success(response)
         this.$router.push('/findevents')

@@ -7,48 +7,14 @@
         List of Events
       </h1>
     </div>
-    <div class="px-10 pt-20">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <h2 class="text-2xl font-bold">Search Event By</h2>
-        <!-- Displays Event Name or Event Date selection -->
-        <div class="flex flex-col">
-          <select
-            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            v-model="searchBy">
-            <option value="Event Name">Event Name</option>
-            <option value="Event Date">Event Date</option>
-          </select>
-        </div>
-        <!--Displays event name search field-->
-        <div class="flex flex-col" v-if="searchBy === 'Event Name'">
-          <label class="block">
-            <input type="text"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              v-model="name" v-on:keyup.enter="handleSubmitForm" placeholder="Enter event name" />
-          </label>
-        </div>
-        <!-- Displays event date search field -->
-        <div class="flex flex-col" v-if="searchBy === 'Event Date'">
-          <input
-            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            type="date" v-model="eventDate" v-on:keyup.enter="handleSubmitForm" />
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-        <div></div>
-        <div></div>
-        <!--Clear Search button-->
-        <div class="mt-5 grid-cols-2">
-          <button class="mr-10 border border-red-700 bg-white text-red-700 rounded" @click="loadData" type="submit">
-            Clear Search
-          </button>
-          <!--Search Event button-->
-          <button class="bg-red-700 text-white rounded" @click="handleSubmitForm" type="submit">
-            Search Event
-          </button>
-        </div>
-      </div>
-    </div>
+    <SearchBar
+      v-model="searchParams"
+      search-by-label="Search Event By"
+      :options="searchOptions"
+      :fields="searchFields"
+      search-label="Search Event"
+      @search="handleSubmitForm"
+      @clear="loadData" />
 
     <hr class="mt-10 mb-10" />
     <!-- Display Found Data -->
@@ -128,14 +94,31 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getEvents, searchEvents } from '../api/api'
 import { useApi } from '../composables/useApi'
+import SearchBar from '../components/SearchBar.vue'
 
 // Navigation
 const router = useRouter()
 
-// Search form variables
-const searchBy = ref('')
-const name = ref('')
-const eventDate = ref('')
+// Search form values, bound to the SearchBar component
+const searchParams = ref({ searchBy: '', name: '', eventDate: '' })
+
+// Choices and inputs rendered by the SearchBar
+const searchOptions = [
+  { value: 'Event Name', label: 'Event Name' },
+  { value: 'Event Date', label: 'Event Date' }
+]
+const searchFields = [
+  {
+    key: 'name',
+    placeholder: 'Enter event name',
+    showWhen: { key: 'searchBy', value: 'Event Name' }
+  },
+  {
+    key: 'eventDate',
+    type: 'date',
+    showWhen: { key: 'searchBy', value: 'Event Date' }
+  }
+]
 
 // Currently highlighted event row
 const hoverId = ref(null)
@@ -162,9 +145,7 @@ const events = computed(() => data.value ?? [])
 
 // Reset search and load all events
 async function loadData() {
-  searchBy.value = ''
-  name.value = ''
-  eventDate.value = ''
+  searchParams.value = { searchBy: '', name: '', eventDate: '' }
   currentQuery.value = null
 
   await execute()
@@ -172,25 +153,25 @@ async function loadData() {
 
 // Search events by name or date
 async function handleSubmitForm() {
-  if (searchBy.value === 'Event Name') {
-    if (!name.value) {
+  if (searchParams.value.searchBy === 'Event Name') {
+    if (!searchParams.value.name) {
       return
     }
 
     currentQuery.value = {
       searchBy: 'name',
-      name: name.value
+      name: searchParams.value.name
     }
 
-  } else if (searchBy.value === 'Event Date') {
-    if (!eventDate.value) {
+  } else if (searchParams.value.searchBy === 'Event Date') {
+    if (!searchParams.value.eventDate) {
       return
     }
 
     // The date input already provides YYYY-MM-DD
     currentQuery.value = {
       searchBy: 'date',
-      eventDate: eventDate.value
+      eventDate: searchParams.value.eventDate
     }
 
   } else {
