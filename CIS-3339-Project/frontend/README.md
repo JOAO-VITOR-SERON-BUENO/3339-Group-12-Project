@@ -11,9 +11,9 @@ an SPA fallback (see [SPA fallback](#spa-fallback-required-for-static-hosting)).
 
 ## Prerequisites
 
-- **Node.js** `^14.18.0` or `>=16.0.0` (the requirement of Vite 3, which this project uses).
+- **Node.js** `^20.19.0` or `>=22.12.0` to build (Vite 8's requirement). Running the tests needs
+  `^22.12.0`, `^24`, or `>=26` (Vitest 5's requirement), so **Node 22.12+ or 24 LTS** is recommended.
   The production build was verified with **Node.js 24.20.0** and **npm 11.19.0** on macOS.
-  An active LTS release (Node 20 or 22) is recommended.
 - **npm** (ships with Node.js).
 - A running **backend API** - either a local instance (see `../backend/README.md`) or a cloud-deployed
   one. The frontend only needs its URL.
@@ -73,7 +73,7 @@ The final demo should run against this production build, not the dev server.
 
 ## SPA fallback (required for static hosting)
 
-The router uses HTML5 history mode (`createWebHistory()`), so URLs look like `/clientdetails/123`
+The router uses HTML5 history mode (`createWebHistory(import.meta.env.BASE_URL)`), so URLs look like `/clientdetails/123`
 rather than `/#/clientdetails/123`. Those paths do not exist as files in `dist/`. When a user refreshes
 or opens such a URL directly, the host must respond with `dist/index.html` (and status 200) instead of
 a 404, so that Vue Router can resolve the route in the browser.
@@ -155,7 +155,7 @@ for the host the team actually uses.
 
 On macOS with Node 24.20.0:
 
-- `npm install`, `npm run build` - succeeds (116 modules, no unresolved imports).
+- `npm install`, `npm run build` (Vite 8) - succeeds (118 modules, no unresolved imports, no warnings).
 - The build also succeeds on a **case-sensitive** filesystem (a case-sensitive APFS volume, approximating
   Linux and most CI/hosting builders). This required fixing an import whose casing did not match the
   file name (`eventdetails.vue` vs `eventDetails.vue`), which builds on macOS/Windows but fails on Linux.
@@ -177,13 +177,14 @@ Unit tests for the `useApi` composable use [Vitest](https://vitest.dev/):
 ## Known limitations
 
 - **Not deployed yet** - there is no public URL, and the hosting section above is still TBD.
-- **Must be served from the domain root.** Vite's `base` is the default `/` and the router uses
-  `createWebHistory()` without a base. Hosting under a sub-path (e.g. `https://host/app/`) would require
-  setting `base` in `vite.config.js` and passing `import.meta.env.BASE_URL` to `createWebHistory()`.
+- **Served from the domain root by default.** Vite's `base` is the default `/`. Hosting under a sub-path
+  (e.g. `https://host/app/`) requires setting `base: '/app/'` in `vite.config.mjs`; the router already reads
+  it through `import.meta.env.BASE_URL`, and the SPA fallback must then rewrite to `/app/index.html`.
 - **GitHub Pages** does not support rewrite rules, so it cannot provide the SPA fallback without a
   workaround (e.g. copying `index.html` to `404.html`, which returns status 404). A host with rewrites is
   preferred.
 - **`VITE_ROOT_API` is fixed at build time** - one build targets exactly one backend.
-- **Login does not yet survive a page refresh** on this branch; session restoration is being implemented
-  separately (F4).
-- The dashboard chunk is about 209 KB (72 KB gzipped), mostly Chart.js.
+- **The session is stored in `localStorage`** (JWT) and restored on page load; an expired or malformed token
+  is discarded, and any `401` response logs the user out. Role checks in the frontend are UX only - the
+  backend must enforce them.
+- The dashboard chunk is about 209 KB (71 KB gzipped), mostly Chart.js.
