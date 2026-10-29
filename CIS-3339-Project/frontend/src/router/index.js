@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useLoggedInUserStore } from '@/store/loggedInUser';
 
 // Helper to decode JWT and check expiration
 function isTokenValid(token) {
@@ -31,8 +32,16 @@ const routes = [
   },
   {
     path: '/clients',
+    // alias keeps the existing nav links and view redirects working
+    alias: '/findclient',
     name: 'Clients',
     component: () => import('@/views/findclient.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/clientdetails/:id',
+    name: 'clientdetails',
+    component: () => import('@/views/clientdetails.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -55,14 +64,28 @@ const routes = [
   },
   {
     path: '/events',
+    alias: '/findevents',
     name: 'Events',
     component: () => import('@/views/findevents.vue'),
     meta: { requiresAuth: true }
   },
   {
+    path: '/eventdetails/:id',
+    name: 'eventdetails',
+    component: () => import('@/views/eventDetails.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/services',
+    alias: '/findservice',
     name: 'Services',
     component: () => import('@/views/findservice.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/servicedetails/:id',
+    name: 'servicedetails',
+    component: () => import('@/views/servicedetails.vue'),
     meta: { requiresAuth: true }
   },
   // Catch-all 404 route
@@ -81,7 +104,8 @@ const router = createRouter({
 // Global Navigation Guard for Authentication and Roles
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('authToken');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // role comes from the Pinia store (restored from the JWT on startup)
+  const user = useLoggedInUserStore();
   const loggedIn = !!token && isTokenValid(token);
 
   if (token && !loggedIn) {
