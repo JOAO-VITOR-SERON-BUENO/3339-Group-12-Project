@@ -76,7 +76,7 @@
           </div>
           <!--Go back button-->
           <div class="flex justify-between mt-20 mr-20">
-            <button type="reset" class="border border-red-700 bg-white text-red-700 rounded" @click="this.$router.back()">
+            <button type="reset" class="border border-red-700 bg-white text-red-700 rounded" @click="router.back()">
               Go back
             </button>
           </div>
@@ -117,7 +117,9 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { reactive, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import { useLoggedInUserStore } from "../store/loggedInUser";
@@ -127,106 +129,98 @@ import ConfirmationModal from '../components/ConfirmationModal.vue'
 
 //Notifications
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 
-export default {
-  components: {
-    ConfirmationModal
+// confirmation dialog shown before deleting
+const confirmationModal = ref(null)
+const user = useLoggedInUserStore();
+
+//variable to store service information
+const service = reactive({
+  name: null,
+  description: null,
+  status: null
+})
+// all events that host the service
+const events = ref([])
+// variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
+const hoverId = ref(null)
+
+// validations
+const rules = {
+  service: {
+    name: { required },
   },
-  data() {
-    return {
-      //variable to store service information
-      service: {
-        name: null,
-        description: null,
-        status: null
-      },
-      // all events that host the service
-      events: [],
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
+}
+// register Vuelidate - the state object is passed in explicitly
+const v$ = useVuelidate(rules, { service })
+
+// when component is mounted, data is loaded
+onMounted(async () => {
+  try {
+    const [serviceResponse, eventsResponse] = await Promise.all([
+      getServiceById(route.params.id),
+      getEventsByServiceId(route.params.id),
+    ]);
+
+    Object.assign(service, serviceResponse);
+    events.value = eventsResponse;
+
+  } catch (error) {
+    toast.error(error);
+  }
+})
+
+// method to format the event dates
+function formatDate(date) {
+  const isoDate = new Date(date);
+  const year = isoDate.getUTCFullYear();
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(isoDate.getUTCDate()).padStart(2, '0');
+  return `${month}/${day}/${year}`;
+}
+
+// method called when user attempts to update the service
+async function submitServiceUpdate() {
+  // Trigger validation
+  await v$.value.$validate();
+
+  if (v$.value.$error) {
+    // Form is invalid, do not proceed
+    return;
+  }
+
+  try {
+    const response = await updateService(route.params.id, service);
+    router.push('/findservice')
+    toast.success(response)
+  } catch (error) {
+    toast.error('error updating service', error)
+  }
+}
+
+// method to make the API call to delete the service - can only be deleted service is not used in any event
+async function submitDeleteService() {
+  try {
+    if (events.value.length != 0)
+    {
+      toast.info('Service can not be deleted since it is being used by events.')
+      return
     }
-  },
-  setup() {
-    // register Vuelidate and loggedIn store
-    const v$ = useVuelidate();
-    const user = useLoggedInUserStore();
-    return { v$, user };
-  },
-  validations() {
-    // validations      
-    return {
-      service: {
-        name: { required },
-      },
-    };
-  },
-  async mounted() {
-    // when component is mounted, data is loaded
-    try {
-      const [serviceResponse, eventsResponse] = await Promise.all([
-        getServiceById(this.$route.params.id),
-        getEventsByServiceId(this.$route.params.id),
-      ]);
 
-      this.service = serviceResponse;
-      this.events = eventsResponse;
+    const confirmed = await confirmationModal.value.confirm({
+      title: 'Delete service?',
+      message: `Are you sure you want to delete ${service.name}? This action cannot be undone.`,
+      confirmText: 'Delete Service'
+    })
+    if (!confirmed) return
 
-    } catch (error) {
-      toast.error(error);
-    }
-  },
-  methods: {
-    // method to format the event dates
-    formatDate(date) {
-      const isoDate = new Date(date);
-      const year = isoDate.getUTCFullYear();
-      const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(isoDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day}/${year}`;
-    },
-
-    // method called when user attempts to update the service
-    async submitServiceUpdate() {
-      // Trigger validation
-      this.v$.$validate();
-
-      if (this.v$.$error) {
-        // Form is invalid, do not proceed
-        return;
-      }
-
-      try {
-        const response = await updateService(this.$route.params.id, this.service);
-        this.$router.push('/findservice')
-        toast.success(response)
-      } catch (error) {
-        toast.error('error updating service', error)
-      }
-    },
-
-    // method to make the API call to delete the service - can only be deleted service is not used in any event
-    async submitDeleteService() {
-      try {
-        if (this.events.length != 0)
-        {
-          toast.info('Service can not be deleted since it is being used by events.')
-          return
-        }
-
-        const confirmed = await this.$refs.confirmationModal.confirm({
-          title: 'Delete service?',
-          message: `Are you sure you want to delete ${this.service.name}? This action cannot be undone.`,
-          confirmText: 'Delete Service'
-        })
-        if (!confirmed) return
-
-        const response = await deleteService(this.$route.params.id);
-        toast.success(response)
-        this.$router.push('/findservice')
-      } catch (error) {
-        toast.error(error)
-      }
-    },
+    const response = await deleteService(route.params.id);
+    toast.success(response)
+    router.push('/findservice')
+  } catch (error) {
+    toast.error(error)
   }
 }
 </script>
