@@ -1,6 +1,6 @@
 // This file contains all API calls to the API endpoints
 import axios from "axios";
-import { useAuthStore } from "@/store/loggedInUser";
+import { useLoggedInUserStore } from "@/store/loggedInUser";
 import router from "@/router";
 
 //  decode JWT and check if it's expired
@@ -55,10 +55,8 @@ apiClient.interceptors.response.use(
       localStorage.removeItem("authToken");
       delete apiClient.defaults.headers.common["Authorization"];
       try {
-        const authStore = useAuthStore();
-        if (authStore && typeof authStore.clearSession === "function") {
-          authStore.clearSession();
-        }
+        // reset the Pinia login state so the nav updates
+        useLoggedInUserStore().$patch({ name: "", role: "", isLoggedIn: false });
       } catch (e) {
         // if store isn't initialized yet
       }
@@ -67,14 +65,19 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Extract an error message
-    let errorMessage = "An unexpected error occurred";
+    // Extract one readable error message
+    let errorMessage = "Unable to complete the request";
     if (typeof data === "string") {
       errorMessage = data;
-    } else if (data && data.message) {
+    } else if (typeof data?.error === "string") {
+      errorMessage = data.error;
+    } else if (typeof data?.message === "string") {
       errorMessage = data.message;
-    } else if (data && data.errors && data.errors.length > 0) {
-      errorMessage = data.errors[0].msg;
+    } else if (Array.isArray(data?.errors)) {
+      errorMessage =
+        data.errors[0]?.msg ||
+        data.errors[0]?.message ||
+        errorMessage;
     }
 
     return Promise.reject(new Error(errorMessage));

@@ -32,10 +32,11 @@ const initialDecoded = getValidDecodedToken();
 export const useLoggedInUserStore = defineStore({
   id: 'loggedInUser',
   state: () => {
+    // restore the session from a valid saved token so a page refresh keeps the user logged in
     return {
-      name: "",
-      role: "",
-      isLoggedIn: false
+      name: initialDecoded?.name || "",
+      role: initialDecoded?.role || "",
+      isLoggedIn: !!initialDecoded
     }
   },
   actions: {
