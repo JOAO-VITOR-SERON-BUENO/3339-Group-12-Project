@@ -24,140 +24,176 @@
         <h2 class="text-2xl font-bold">List of Events</h2>
         <h3 class="italic">Click table row to view event details</h3>
       </div>
-      <div class="flex flex-col col-span-2">
-        <table class="min-w-full shadow-md rounded">
-          <thead class="bg-gray-50 text-xl">
-            <tr>
-              <th class="p-4 text-left">Event Name</th>
-              <th class="p-4 text-left">Event Date</th>
-              <th class="p-4 text-left">Event Address</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-300">
-            <tr @click="$router.push({name: 'eventdetails', params: { id: event._id } })"
-              v-for="event in events" :key="event._id" class="cursor-pointer"
-              :class="{ 'hoverRow': hoverId === event._id }" @mouseenter="hoverId = event._id"
-              @mouseleave="hoverId = null">
-              <td class="p-2 text-left">{{ event.name }}</td>
-              <td class="p-2 text-left">{{ formatDate(event.date) }}</td>
-              <td class="p-2 text-left">{{ event.address.line1 }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      
+<div class="flex flex-col col-span-2">
+
+  <!-- Loading state -->
+  <div v-if="loading" class="p-4 text-center text-gray-600">
+    Loading events...
+  </div>
+
+  <!-- Error state -->
+  <div v-else-if="error" class="p-4 text-red-700">
+    <p>{{ error }}</p>
+
+    <button
+      class="mt-3 px-4 py-2 bg-red-700 text-white rounded"
+      @click="execute"
+    >
+      Retry
+    </button>
+  </div>
+
+  <!-- Empty state -->
+  <div
+    v-else-if="!events.length"
+    class="p-4 text-center text-gray-600"
+  >
+    No events found.
+  </div>
+
+  <!-- Events table -->
+  <table v-else class="min-w-full shadow-md rounded">
+    <thead class="bg-gray-50 text-xl">
+      <tr>
+        <th class="p-4 text-left">Event Name</th>
+        <th class="p-4 text-left">Event Date</th>
+        <th class="p-4 text-left">Event Address</th>
+      </tr>
+    </thead>
+
+    <tbody class="divide-y divide-gray-300">
+      <tr
+        v-for="event in events"
+        :key="event._id"
+        @click="router.push({
+          name: 'eventdetails',
+          params: { id: event._id }
+        })"
+        class="cursor-pointer"
+        :class="{ hoverRow: hoverId === event._id }"
+        @mouseenter="hoverId = event._id"
+        @mouseleave="hoverId = null"
+      >
+        <td class="p-2 text-left">{{ event.name }}</td>
+        <td class="p-2 text-left">{{ formatDate(event.date) }}</td>
+        <td class="p-2 text-left">{{ event.address?.line1 }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
     </div>
   </main>
 </template>
 
-<script>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getEvents, searchEvents } from '../api/api'
-import { useToast } from 'vue-toastification'
+import { useApi } from '../composables/useApi'
 import SearchBar from '../components/SearchBar.vue'
 
-//Notifications
-const toast = useToast()
+// Navigation
+const router = useRouter()
 
-export default {
-  components: {
-    SearchBar
-  },
-  data() {
-    return {
-      //variable to hold all events for the organization
-      events: null,
-      searchParams: {
-        searchBy: null,
-        name: null,
-        eventDate: null
-      },
-      searchOptions: [
-        { value: 'Event Name', label: 'Event Name' },
-        { value: 'Event Date', label: 'Event Date' }
-      ],
-      searchFields: [
-        {
-          key: 'name',
-          placeholder: 'Enter event name',
-          showWhen: { key: 'searchBy', value: 'Event Name' }
-        },
-        {
-          key: 'eventDate',
-          type: 'date',
-          showWhen: { key: 'searchBy', value: 'Event Date' }
-        }
-      ],
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data
-    this.loadData();
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets variables used for search
-      this.searchParams = {
-        searchBy: null,
-        name: null,
-        eventDate: null
-      }
+// Search form values, bound to the SearchBar component
+const searchParams = ref({ searchBy: '', name: '', eventDate: '' })
 
-      // show loading wheel
-      this.isLoading = true;
-      // get list of events
-      try {
-        const response = await getEvents();
-        this.events = response;
-      } catch (error) {
-        toast.error('loadData error', error)
-      }
-    },
-
-    // method called when user searches for an event
-    async handleSubmitForm() {
-      // if user searches by event name
-      if (this.searchParams.searchBy === 'Event Name') {
-        if (this.searchParams.name) {
-          try {
-            const query = {
-              searchBy: 'name',
-              name: this.searchParams.name
-            };
-            const response = await searchEvents(query);
-            this.events = response;
-          } catch (error) {
-            toast.error('Error searching events', error)
-          }
-        }
-        // if user searches by event date
-      } else if (this.searchParams.searchBy === 'Event Date') {
-        if (this.searchParams.eventDate) {
-          try {
-            const eventDate = new Date(this.searchParams.eventDate);
-            const formattedDate = eventDate.toISOString().substring(0, 10);
-            const query = {
-              searchBy: 'date',
-              eventDate: formattedDate
-            };
-            const response = await searchEvents(query);
-            this.events = response;
-          } catch (error) {
-            toast.error('Error searching events:', error)
-          }
-        }
-      }
-    },
-
-    // method called for each event date so it will be formatted correctly on the table
-    formatDate(date) {
-      const isoDate = new Date(date);
-      const year = isoDate.getUTCFullYear();
-      const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(isoDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day}/${year}`;
-    },
+// Choices and inputs rendered by the SearchBar
+const searchOptions = [
+  { value: 'Event Name', label: 'Event Name' },
+  { value: 'Event Date', label: 'Event Date' }
+]
+const searchFields = [
+  {
+    key: 'name',
+    placeholder: 'Enter event name',
+    showWhen: { key: 'searchBy', value: 'Event Name' }
   },
+  {
+    key: 'eventDate',
+    type: 'date',
+    showWhen: { key: 'searchBy', value: 'Event Date' }
+  }
+]
+
+// Currently highlighted event row
+const hoverId = ref(null)
+
+// Stores the search criteria for retries
+const currentQuery = ref(null)
+
+// Shared API handler
+const {
+  data,
+  loading,
+  error,
+  execute
+} = useApi(() => {
+  if (currentQuery.value) {
+    return searchEvents(currentQuery.value)
+  }
+
+  return getEvents()
+})
+
+// Events displayed in the table
+const events = computed(() => data.value ?? [])
+
+// Reset search and load all events
+async function loadData() {
+  searchParams.value = { searchBy: '', name: '', eventDate: '' }
+  currentQuery.value = null
+
+  await execute()
 }
+
+// Search events by name or date
+async function handleSubmitForm() {
+  if (searchParams.value.searchBy === 'Event Name') {
+    if (!searchParams.value.name) {
+      return
+    }
+
+    currentQuery.value = {
+      searchBy: 'name',
+      name: searchParams.value.name
+    }
+
+  } else if (searchParams.value.searchBy === 'Event Date') {
+    if (!searchParams.value.eventDate) {
+      return
+    }
+
+    // The date input already provides YYYY-MM-DD
+    currentQuery.value = {
+      searchBy: 'date',
+      eventDate: searchParams.value.eventDate
+    }
+
+  } else {
+    return
+  }
+
+  await execute()
+}
+
+// Format the date as MM/DD/YYYY
+function formatDate(date) {
+  const isoDate = new Date(date)
+
+  const year = isoDate.getUTCFullYear()
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(isoDate.getUTCDate()).padStart(2, '0')
+
+  return `${month}/${day}/${year}`
+}
+
+// Fetch events when the page opens
+onMounted(() => {
+  loadData()
+})
 </script>

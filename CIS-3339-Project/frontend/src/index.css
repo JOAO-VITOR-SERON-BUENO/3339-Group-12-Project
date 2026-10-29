@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 entry point; @config keeps using tailwind.config.js (content paths + forms plugin) */
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 button {
   padding: 10px;
