@@ -64,17 +64,22 @@ npx vitest run     # unit tests (useApi composable)
 
 ## Deployment (frontend)
 
-`frontend/dist` is a static site. On any static host:
+**Hosting used:** GitHub Pages, at https://joao-vitor-seron-bueno.github.io/3339-Group-12-Project/
 
-1. Set the root directory to `CIS-3339-Project/frontend`, the build command to
-   `npm install && npm run build`, and the publish directory to `dist`.
-2. Set `VITE_ROOT_API` to the backend URL **before** building.
-3. Configure the **SPA fallback**: rewrite unknown paths to `/index.html` so that refreshing a nested route
-   such as `/clientdetails/<id>` works. Per-host examples are in the
-   [Frontend README](CIS-3339-Project/frontend/README.md#spa-fallback-required-for-static-hosting).
-4. The backend's CORS policy must allow the frontend's origin; it currently allows every origin.
+- The workflow [`.github/workflows/deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) tests and
+  builds the frontend on every push or pull request to `dev` or `main` that changes
+  `CIS-3339-Project/frontend/`. It publishes to Pages only from `main`. You can also run it by hand from the
+  *Actions* tab.
+- **One-time setup** (a repository admin): *Settings > Pages > Build and deployment > Source:*
+  **GitHub Actions**. The site goes live after that and the first successful run.
+- The workflow builds with `BASE_PATH=/3339-Group-12-Project/` (Pages serves project sites from
+  `/<repo>/`). It also copies `index.html` to `404.html` as the SPA fallback, so refreshing a nested route
+  such as `/clientdetails/<id>` works.
+- To point the site at a hosted backend later, set the repository variable `VITE_ROOT_API` (HTTPS URL) and
+  re-run the workflow.
 
-**Hosting used:** *TBD - not deployed yet. Record the host, settings, and URL here once deployed.*
+Details and settings for other hosts are in the
+[Frontend README](CIS-3339-Project/frontend/README.md#deployment-github-pages).
 
 ## Backend
 
@@ -94,8 +99,10 @@ organization and users, and the configuration in `CIS-3339-Project/backend/.env`
 
 ## Known limitations
 
-- **The frontend is not deployed yet.**
+- **The GitHub Pages site needs the one-time Pages setup above.** Until a backend is hosted, it loads but
+  shows "Unable to reach the server" for data and login.
 - Backend work (database initialization, server-side role checks and organization isolation, event
   registration rules) is planned for a later sprint.
 - Role checks in the frontend are UX only; the backend must enforce them.
-- The frontend must be served from the domain root unless Vite's `base` is changed (see the Frontend README).
+- On GitHub Pages, a direct visit or refresh of a nested route returns HTTP 404 (via `404.html`), even
+  though the page renders correctly.

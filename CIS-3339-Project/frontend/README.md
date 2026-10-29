@@ -114,8 +114,9 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.html [L]
 ```
 
-None of these host-specific files are committed yet, because no host has been chosen. Add only the one
-for the host the team actually uses.
+**GitHub Pages** (the host this project uses) has no rewrite rules. Instead, the deploy workflow copies
+`index.html` to `404.html`, which Pages serves for any unknown path. The app loads and Vue Router shows the
+right page, but the HTTP status of that first response is 404. No other host files are committed.
 
 ## Backend URL and CORS
 
@@ -131,25 +132,43 @@ for the host the team actually uses.
 - A frontend served over **HTTPS** must use an **HTTPS** backend URL; browsers block HTTP API calls from an
   HTTPS page (mixed content).
 
-## Deployment steps
+## Deployment (GitHub Pages)
 
-1. Deploy the backend and note its public URL (e.g. `https://<your-backend-host>`).
-2. Set `VITE_ROOT_API` to that URL - in the host's build environment variables if the host builds the app,
-   or in `frontend/.env.local` if you build locally and upload `dist/`.
-3. Build:
+**Hosting used:** GitHub Pages, deployed by the GitHub Actions workflow
+[`.github/workflows/deploy-frontend.yml`](../../.github/workflows/deploy-frontend.yml).
 
-       cd frontend
-       npm install
-       npm run build
+Site URL: https://joao-vitor-seron-bueno.github.io/3339-Group-12-Project/ (live after the setup below and
+the first successful run).
 
-   Most hosts that build for you need: base/root directory `CIS-3339-Project/frontend`, build command
-   `npm install && npm run build` (or `npm ci && npm run build`), publish directory `dist`.
-4. Configure the SPA fallback for the host (see above).
-5. Make sure the backend's CORS policy allows the frontend's origin (see above).
-6. Verify the deployed site: open it, log in, then refresh a nested route such as `/clientdetails/<id>`.
-   Check the browser's network tab that API requests go to the backend URL, not to the frontend host.
+**One-time setup** (a repository admin): *Settings > Pages > Build and deployment > Source:*
+**GitHub Actions**.
 
-**Hosting used:** *TBD - not deployed yet. Once deployed, record the host, build settings, and URLs here.*
+**How it deploys:** every push or pull request to `dev` or `main` that changes `CIS-3339-Project/frontend/`
+(or the workflow) runs the workflow. On `dev` and on pull requests, it only tests and builds, as a CI check.
+A push to `main` also publishes the site; Pages accepts deployments only from the default branch. You can
+also start it by hand from the *Actions* tab (*Deploy frontend to GitHub Pages > Run workflow*). The
+workflow:
+
+1. runs `npm ci` and the unit tests (`npx vitest run`) with Node 24;
+2. builds with `BASE_PATH=/3339-Group-12-Project/`. A project site is served from `/<repo>/`, so
+   `vite.config.mjs` uses this as Vite's `base`, and the router picks it up through
+   `import.meta.env.BASE_URL`. Local builds keep `base` at `/`;
+3. copies `dist/index.html` to `dist/404.html` for the SPA fallback (see above);
+4. on `main` only, uploads `dist/` and publishes it to Pages.
+
+**Backend URL:** the build uses the committed `frontend/.env` (`http://localhost:3000`). To point the
+deployed site at a hosted backend, add a repository variable `VITE_ROOT_API` (*Settings > Secrets and
+variables > Actions > Variables*) with its HTTPS URL, and re-run the workflow. Pages is served over HTTPS, so
+a hosted backend must use HTTPS too, and its CORS policy must allow `https://joao-vitor-seron-bueno.github.io`.
+
+**Checking a deployment:** open the site, log in, and refresh a nested route such as
+`/3339-Group-12-Project/clientdetails/<id>`. In the browser's network tab, confirm that API requests go to
+the backend URL.
+
+**Other static hosts:** set the root directory to `CIS-3339-Project/frontend`, the build command to
+`npm ci && npm run build`, and the publish directory to `dist`. Set `VITE_ROOT_API`, and configure the SPA
+fallback rewrite for that host (examples above). Leave `BASE_PATH` unset when the site is served from the
+domain root.
 
 ## Verification performed (Sprint 2, D2)
 
@@ -164,9 +183,15 @@ On macOS with Node 24.20.0:
 - In headless Chrome against the production build, the dashboard called `http://localhost:3000` (the
   configured `VITE_ROOT_API`) for `/org`, `/events/attendance`, and `/clients/byzip`, and rendered the tables
   and both charts. A mock API with sample data was used here, not the real backend/database.
+- **GitHub Pages build**, emulated locally: built with `BASE_PATH=/3339-Group-12-Project/` plus the `404.html`
+  copy, and served by a local server that mimics Pages (`/<repo>/` prefix; unknown paths return `404.html`).
+  In headless Chrome, the login page, dashboard, `/clientdetails/<id>` (refreshed directly), and the 404 page
+  all rendered with no console errors. All asset URLs and nav links carried the `/3339-Group-12-Project/`
+  prefix.
 
 Not yet verified: the production build against the real backend and database, full logged-in CRUD flows,
-a native Windows or Linux build, and an actual deployment.
+a native Windows or Linux build, and the live GitHub Pages deployment (it needs Pages enabled and the
+workflow merged to `main`).
 
 ## Tests
 
@@ -176,13 +201,15 @@ Unit tests for the `useApi` composable use [Vitest](https://vitest.dev/):
 
 ## Known limitations
 
-- **Not deployed yet** - there is no public URL, and the hosting section above is still TBD.
-- **Served from the domain root by default.** Vite's `base` is the default `/`. Hosting under a sub-path
-  (e.g. `https://host/app/`) requires setting `base: '/app/'` in `vite.config.mjs`; the router already reads
-  it through `import.meta.env.BASE_URL`, and the SPA fallback must then rewrite to `/app/index.html`.
-- **GitHub Pages** does not support rewrite rules, so it cannot provide the SPA fallback without a
-  workaround (e.g. copying `index.html` to `404.html`, which returns status 404). A host with rewrites is
-  preferred.
+- **The GitHub Pages site depends on one-time setup.** It goes live only after a repository admin sets
+  Pages' source to GitHub Actions and the workflow runs on `main`.
+- **The deployed site has no hosted backend yet.** With the committed `VITE_ROOT_API=http://localhost:3000`,
+  the site can only reach a backend running on the visitor's own machine. Otherwise it shows "Unable to
+  reach the server".
+- **On GitHub Pages, a direct visit or refresh of a nested route returns HTTP 404** (via `404.html`), even
+  though the page renders correctly. Pages has no real rewrites.
+- **Sub-path hosting is controlled by `BASE_PATH`** at build time. It defaults to `/`; the Pages workflow
+  sets `/3339-Group-12-Project/`.
 - **`VITE_ROOT_API` is fixed at build time** - one build targets exactly one backend.
 - **The session is stored in `localStorage`** (JWT) and restored on page load; an expired or malformed token
   is discarded, and any `401` response logs the user out. Role checks in the frontend are UX only - the
