@@ -1,123 +1,177 @@
-<!-- This is the home view - which shows a dashboard -->
+
+<!-- Dashboard: Events Attendance and Clients by ZIP Code -->
+
 <template>
   <main>
     <div>
-      <h1 class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10">
+      <h1
+        class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10"
+      >
         Dashboard
       </h1>
+
       <br />
+
+      <!-- EVENTS ATTENDANCE SECTION -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
         <div class="ml-10"></div>
+
         <div class="flex flex-col col-span-2">
-          <h1 class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10">
-              Events Attendance
+          <h1
+            class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10"
+          >
+            Events Attendance
           </h1>
-      
-          <div v-if="!recentEvents.length" class="flex justify-center mt-10">No events found.</div>
-          <table v-if="recentEvents.length" class="min-w-full shadow-md rounded">
-            <thead class="bg-gray-50 text-xl">
-              <tr class="p-4 text-left">
-                <th class="p-4 text-left">Event Name</th>
-                <th class="p-4 text-left">Event Date</th>
-                <th class="p-4 text-left">Number of Attendees</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-300"> 
-              <tr
-                @click="editEvent(event._id)"
-                v-for="event in recentEvents"
-                :key="event._id"
-              >
-                <td class="p-2 text-left">{{ event.name }}</td>
-                <td class="p-2 text-left">{{ formatDate(event.date) }}</td>
-                <td class="p-2 text-left">{{ event.attendees.length }}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div v-if="recentEvents.length">
+
+          <!-- Loading state -->
+          <div
+            v-if="loading"
+            class="p-4 text-center text-gray-600 mt-10"
+          >
+            Loading attendance...
+          </div>
+
+          <!-- Error state -->
+          <div
+            v-else-if="error"
+            class="p-4 text-red-700 mt-10"
+          >
+            <p>{{ error }}</p>
+
+            <button
+              class="mt-3 px-4 py-2 bg-red-700 text-white rounded"
+              @click="loadAttendance"
+            >
+              Retry
+            </button>
+          </div>
+
+          <!-- Empty state -->
+          <div
+            v-else-if="!recentEvents.length"
+            class="flex justify-center mt-10"
+          >
+            No events found.
+          </div>
+
+          <!-- Attendance table -->
+          <template v-else>
+            <table class="min-w-full shadow-md rounded">
+              <thead class="bg-gray-50 text-xl">
+                <tr>
+                  <th class="p-4 text-left">Event Name</th>
+                  <th class="p-4 text-left">Event Date</th>
+                  <th class="p-4 text-left">Number of Attendees</th>
+                </tr>
+              </thead>
+
+              <tbody class="divide-y divide-gray-300">
+                <tr
+                  v-for="event in recentEvents"
+                  :key="event._id"
+                  @click="editEvent(event._id)"
+                  class="cursor-pointer"
+                >
+                  <td class="p-2 text-left">
+                    {{ event.name }}
+                  </td>
+
+                  <td class="p-2 text-left">
+                    {{ formatDate(event.date) }}
+                  </td>
+
+                  <td class="p-2 text-left">
+                    {{ event.attendees?.length ?? 0 }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Attendance chart -->
             <AttendanceChart
-              v-if="!loading && !error"
               :label="labels"
               :chart-data="chartData"
-            ></AttendanceChart>
-
-            <!-- Start of loading animation -->
-            <div class="mt-40" v-if="loading">
-              <p
-                class="text-6xl font-bold text-center text-gray-500 animate-pulse"
-              >
-                Loading...
-              </p>
-            </div>
-            <!-- End of loading animation -->
-
-            <!-- Start of error alert -->
-            <div class="mt-12 bg-red-50" v-if="error">
-              <h3 class="px-4 py-1 text-4xl font-bold text-white bg-red-800">
-                {{ error.title }}
-              </h3>
-              <p class="p-4 text-lg font-bold text-red-900">
-                {{ error.message }}
-              </p>
-            </div>
-            <!-- End of error alert -->
-          </div>
+            />
+          </template>
         </div>
       </div>
+
+      <!-- CLIENTS BY ZIP CODE SECTION -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
         <div class="ml-10"></div>
+
         <div class="flex flex-col col-span-2">
-          <h1 class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10">
-              Clients by Zip Code
+          <h1
+            class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10"
+          >
+            Clients by Zip Code
           </h1>
-          
-          <div v-if="!zips.length" class="flex justify-center mt-10">No clients found.</div>
-          <table v-if="zips.length" class="min-w-full shadow-md rounded">
-            <thead class="bg-gray-50 text-xl">
-              <tr class="p-4 text-left">
-                <th class="p-4 text-left">Zip Number</th>
-                <th class="p-4 text-left">Client Count</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-300">
-              <tr
-                v-for="zip in zips"
-                :key="zip._id"
-              >
-                <td class="p-2 text-left">{{ zip._id }}</td>
-                <td class="p-2 text-left">{{ zip.count }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="zips.length" class="flex justify-center mt-10">
-            <ZipChart
-              v-if="!zipLoading && !zipError"
-              :label="zipLabels"
-              :chart-data="zipChartData"
-            ></ZipChart>
 
-            <!-- Start of loading animation -->
-            <div class="mt-40" v-if="zipLoading">
-              <p
-                class="text-6xl font-bold text-center text-gray-500 animate-pulse"
-              >
-                Loading...
-              </p>
-            </div>
-            <!-- End of loading animation -->
-
-            <!-- Start of error alert -->
-            <div class="mt-12 bg-red-50" v-if="zipError">
-              <h3 class="px-4 py-1 text-4xl font-bold text-white bg-red-800">
-                {{ zipError.title }}
-              </h3>
-              <p class="p-4 text-lg font-bold text-red-900">
-                {{ zipError.message }}
-              </p>
-            </div>
-            <!-- End of error alert -->
+          <!-- Loading state -->
+          <div
+            v-if="zipLoading"
+            class="p-4 text-center text-gray-600 mt-10"
+          >
+            Loading ZIP code data...
           </div>
+
+          <!-- Error state -->
+          <div
+            v-else-if="zipError"
+            class="p-4 text-red-700 mt-10"
+          >
+            <p>{{ zipError }}</p>
+
+            <button
+              class="mt-3 px-4 py-2 bg-red-700 text-white rounded"
+              @click="loadZipData"
+            >
+              Retry
+            </button>
+          </div>
+
+          <!-- Empty state -->
+          <div
+            v-else-if="!zips.length"
+            class="flex justify-center mt-10"
+          >
+            No clients found.
+          </div>
+
+          <!-- ZIP code table -->
+          <template v-else>
+            <table class="min-w-full shadow-md rounded">
+              <thead class="bg-gray-50 text-xl">
+                <tr>
+                  <th class="p-4 text-left">Zip Number</th>
+                  <th class="p-4 text-left">Client Count</th>
+                </tr>
+              </thead>
+
+              <tbody class="divide-y divide-gray-300">
+                <tr
+                  v-for="zip in zips"
+                  :key="zip._id"
+                >
+                  <td class="p-2 text-left">
+                    {{ zip._id }}
+                  </td>
+
+                  <td class="p-2 text-left">
+                    {{ zip.count }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- ZIP code chart -->
+            <div class="flex justify-center mt-10">
+              <ZipChart
+                :label="zipLabels"
+                :chart-data="zipChartData"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -125,95 +179,91 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+
 import AttendanceChart from '../components/barChart.vue'
 import ZipChart from '../components/donutZipChart.vue'
-import { getAttendance, getClientsByZipCode } from '../api/api'
 
+import {
+  getAttendance,
+  getClientsByZipCode
+} from '../api/api'
+
+import { useApi } from '../composables/useApi'
+
+// Router used to navigate to event details
 const router = useRouter()
 
-const recentEvents = ref([])
-const zips = ref([])
-const labels = ref([])
-const chartData = ref([])
-const zipLabels = ref([])
-const zipChartData = ref([])
-const loading = ref(false)
-const error = ref(null)
-const zipLoading = ref(false)
-const zipError = ref(null)
+// API request for Events Attendance
+const {
+  data: attendanceData,
+  loading,
+  error,
+  execute: loadAttendance
+} = useApi(() => getAttendance())
 
-// turn a caught error into a { title, message } object for the error alert
-function describeError(err) {
-  if (err.response) {
-    // client received an error response (5xx, 4xx)
-    return {
-      title: 'Server Response',
-      message: err.message
-    }
-  } else if (err.request) {
-    // client never received a response, or request never left
-    return {
-      title: 'Unable to Reach Server',
-      message: err.message
-    }
-  }
-  // There's probably an error in your code
-  return {
-    title: 'Application Error',
-    message: err.message
-  }
-}
+// API request for Clients by ZIP Code
+const {
+  data: zipData,
+  loading: zipLoading,
+  error: zipError,
+  execute: loadZipData
+} = useApi(() => getClientsByZipCode())
 
-async function getAttendanceData() {
-  try {
-    error.value = null
-    loading.value = true
+// Data for attendance table
+const recentEvents = computed(() => attendanceData.value ?? [])
 
-    const attendance = await getAttendance();
-    recentEvents.value = attendance;
-    labels.value = attendance.map(
-      (item) => `${item.name} (${formatDate(item.date)})`
-    )
-    chartData.value = attendance.map((item) => item.attendees.length)
-  } catch (err) {
-    error.value = describeError(err)
-  }
-  loading.value = false
-}
+// Data for ZIP code table
+const zips = computed(() => zipData.value ?? [])
 
-async function getZipData() {
-  try {
-    zipError.value = null
-    zipLoading.value = true
+// Attendance chart labels
+const labels = computed(() =>
+  recentEvents.value.map(
+    (item) => `${item.name} (${formatDate(item.date)})`
+  )
+)
 
-    const zipdata = await getClientsByZipCode();
-    zips.value = zipdata;
-    zipLabels.value = zipdata.map((item) => item._id)
-    zipChartData.value = zipdata.map((item) => item.count)
-  } catch (err) {
-    zipError.value = describeError(err)
-  }
-  zipLoading.value = false
-}
+// Attendance chart values
+const chartData = computed(() =>
+  recentEvents.value.map(
+    (item) => item.attendees?.length ?? 0
+  )
+)
 
-// clicking an event row opens that event's details
-function editEvent(eventID) {
-  router.push({ name: 'eventdetails', params: { id: eventID } })
-}
+// ZIP code chart labels
+const zipLabels = computed(() =>
+  zips.value.map((item) => item._id)
+)
 
-// method called to format the event date
+// ZIP code chart values
+const zipChartData = computed(() =>
+  zips.value.map((item) => item.count)
+)
+
+// Format dates as MM/DD/YYYY
 function formatDate(date) {
-  const isoDate = new Date(date);
-  const year = isoDate.getUTCFullYear();
-  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(isoDate.getUTCDate()).padStart(2, '0');
-  return `${month}/${day}/${year}`;
+  const isoDate = new Date(date)
+
+  const year = isoDate.getUTCFullYear()
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(isoDate.getUTCDate()).padStart(2, '0')
+
+  return `${month}/${day}/${year}`
 }
 
-onMounted(() => {
-  getAttendanceData()
-  getZipData()
-})
+// Navigate to event details
+function editEvent(id) {
+  router.push({
+    name: 'eventdetails',
+    params: { id }
+  })
+}
+
+// Load dashboard data when page opens.
+// Started during setup (not onMounted) so that execute() flips loading to true
+// before the first render - otherwise the first frame shows the empty state
+// ("No events found.") because loading starts as false and data as null.
+loadAttendance()
+loadZipData()
 </script>

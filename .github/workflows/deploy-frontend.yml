@@ -1,0 +1,79 @@
+# Tests and builds the Vue frontend on dev and main; publishes it to GitHub Pages from main only.
+# One-time setup by a repo admin: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+name: Deploy frontend to GitHub Pages
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'CIS-3339-Project/frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'CIS-3339-Project/frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# only one deployment at a time; let an in-progress one finish
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CIS-3339-Project/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CIS-3339-Project/frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npx vitest run
+
+      # optional: point the build at a deployed backend without editing the committed frontend/.env
+      # (Settings > Secrets and variables > Actions > Variables > VITE_ROOT_API)
+      - name: Backend URL override
+        if: ${{ vars.VITE_ROOT_API != '' }}
+        run: echo "VITE_ROOT_API=${{ vars.VITE_ROOT_API }}" > .env.local
+
+      - name: Build
+        run: npm run build
+        env:
+          # project sites are served from https://<owner>.github.io/<repo>/
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      # GitHub Pages has no rewrite rules: serving index.html as the 404 page makes
+      # refreshes of nested routes (e.g. /clientdetails/<id>) load the app
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: CIS-3339-Project/frontend/dist
+
+  # publish only from main (Pages only accepts deployments from the default branch)
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
