@@ -76,7 +76,9 @@
     </main>
 </template>
 
-<script>
+<script setup>
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
 // import vuelidate validations
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
@@ -85,50 +87,40 @@ import { useToast } from 'vue-toastification'
 
 //Notifications
 const toast = useToast()
+const router = useRouter()
 
-export default {
-    data() {
-        return {
-            //variable to hold new service information
-            service: {
-                name: null,
-                description: null,
-                status: "Active",
-            },
-        }
-    },
-    setup() {
-        // Register Vuelidate
-        const v$ = useVuelidate();
-        return { v$ };
-    },
-    validations() {
-        // validations for service
-        return {
-            service: {
-                name: { required },
-            }
-        }
-    },
-    methods: {
-        // method called when user attempts to create new service
-        async handleSubmitForm() {
-            // Trigger validation
-            this.v$.$validate();
+//variable to hold new service information
+const service = reactive({
+    name: null,
+    description: null,
+    status: "Active",
+})
 
-            if (this.v$.$error) {
-                // Form is invalid, do not proceed
-                return;
-            }
+// validations for service
+const rules = {
+    service: {
+        name: { required },
+    }
+}
+// Register Vuelidate - the state object is passed in explicitly
+const v$ = useVuelidate(rules, { service })
 
-            try {
-                const response = await createService(this.service);
-                toast.success(response)
-                this.$router.push('/findservice')
-            } catch (error) {
-                toast.error('Error creating new service:', error)
-            }
-        },
+// method called when user attempts to create new service
+async function handleSubmitForm() {
+    // Trigger validation
+    await v$.value.$validate();
+
+    if (v$.value.$error) {
+        // Form is invalid, do not proceed
+        return;
+    }
+
+    try {
+        const response = await createService(service);
+        toast.success(response)
+        router.push('/findservice')
+    } catch (error) {
+        toast.error('Error creating new service:', error)
     }
 }
 </script>

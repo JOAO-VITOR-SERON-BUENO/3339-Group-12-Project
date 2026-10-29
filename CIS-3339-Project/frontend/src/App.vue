@@ -89,7 +89,8 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { ref } from 'vue'
 import { useLoggedInUserStore } from './store/loggedInUser'
 import { getOrgName } from './api/api'
 import { useToast } from 'vue-toastification'
@@ -97,34 +98,19 @@ import { useToast } from 'vue-toastification'
 //Notifications
 const toast = useToast()
 
-export default {
-  setup() {
-    const user = useLoggedInUserStore();
-    return { user };
-  },
-  data() {
-    return {
-      orgName: "Dataplatform",
-    };
-  },
-  async created() {
-    try {
-      this.orgName = await getOrgName();
-    } catch {
-      throw (error)
-    }
-  },
-  methods: {
-    logout() {
-      try {
-        this.$store.dispatch('clearSessionData');
-        this.$router.push('/')
-      } catch (error) {
-        toast.error('logout error', error)
-      }
-    },
+const user = useLoggedInUserStore();
+const orgName = ref("Dataplatform");
+
+// load the organization name when the app starts
+async function loadOrgName() {
+  try {
+    orgName.value = await getOrgName();
+  } catch (error) {
+    console.error(error)
+    toast.error('Unable to load organization name')
   }
 }
+loadOrgName()
 </script>
 
 <style scoped>

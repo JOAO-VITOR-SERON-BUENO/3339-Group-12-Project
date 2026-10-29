@@ -124,109 +124,96 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AttendanceChart from '../components/barChart.vue'
 import ZipChart from '../components/donutZipChart.vue'
 import { getAttendance, getClientsByZipCode } from '../api/api'
 
-export default {
-  components: {
-    AttendanceChart,
-    ZipChart,
-  },
-  data() {
+const router = useRouter()
+
+const recentEvents = ref([])
+const zips = ref([])
+const labels = ref([])
+const chartData = ref([])
+const zipLabels = ref([])
+const zipChartData = ref([])
+const loading = ref(false)
+const error = ref(null)
+const zipLoading = ref(false)
+const zipError = ref(null)
+
+// turn a caught error into a { title, message } object for the error alert
+function describeError(err) {
+  if (err.response) {
+    // client received an error response (5xx, 4xx)
     return {
-      recentEvents: [],
-      zips: [],
-      labels: [],
-      chartData: [],
-      zipLabels: [],
-      zipChartData: [],
-      loading: false,
-      error: null,
-      zipLoading: false,
-      zipError: null
+      title: 'Server Response',
+      message: err.message
     }
-  },
-  mounted() {
-    this.getAttendanceData()
-    this.getZipData()
-  },
-  methods: {
-    async getAttendanceData() {
-      try {
-        this.error = null
-        this.loading = true
-        
-        const attendance = await getAttendance();
-        this.recentEvents = attendance;
-        this.labels = attendance.map(
-          (item) => `${item.name} (${this.formatDate(item.date)})`
-        )
-        this.chartData = attendance.map((item) => item.attendees.length)
-      } catch (err) {
-        if (err.response) {
-          // client received an error response (5xx, 4xx)
-          this.error = {
-            title: 'Server Response',
-            message: err.message
-          }
-        } else if (err.request) {
-          // client never received a response, or request never left
-          this.error = {
-            title: 'Unable to Reach Server',
-            message: err.message
-          }
-        } else {
-          // There's probably an error in your code
-          this.error = {
-            title: 'Application Error',
-            message: err.message
-          }
-        }
-      }
-      this.loading = false
-    },
-    async getZipData() {
-      try {
-        this.zipError = null
-        this.zipLoading = true
-        
-        const zipdata = await getClientsByZipCode();
-        this.zips = zipdata;
-        this.zipLabels = zipdata.map((item) => item._id)
-        this.zipChartData = zipdata.map((item) => item.count)
-      } catch (err) {
-        if (err.response) {
-          // client received an error response (5xx, 4xx)
-          this.zipError = {
-            title: 'Server Response',
-            message: err.message
-          }
-        } else if (err.request) {
-          // client never received a response, or request never left
-          this.zipError = {
-            title: 'Unable to Reach Server',
-            message: err.message
-          }
-        } else {
-          // There's probably an error in your code
-          this.zipError = {
-            title: 'Application Error',
-            message: err.message
-          }
-        }
-      }
-      this.zipLoading = false
-    },
-    // method called to format the event date
-    formatDate(date) {
-      const isoDate = new Date(date);
-      const year = isoDate.getUTCFullYear();
-      const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(isoDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day}/${year}`;
-    },
+  } else if (err.request) {
+    // client never received a response, or request never left
+    return {
+      title: 'Unable to Reach Server',
+      message: err.message
+    }
+  }
+  // There's probably an error in your code
+  return {
+    title: 'Application Error',
+    message: err.message
   }
 }
+
+async function getAttendanceData() {
+  try {
+    error.value = null
+    loading.value = true
+
+    const attendance = await getAttendance();
+    recentEvents.value = attendance;
+    labels.value = attendance.map(
+      (item) => `${item.name} (${formatDate(item.date)})`
+    )
+    chartData.value = attendance.map((item) => item.attendees.length)
+  } catch (err) {
+    error.value = describeError(err)
+  }
+  loading.value = false
+}
+
+async function getZipData() {
+  try {
+    zipError.value = null
+    zipLoading.value = true
+
+    const zipdata = await getClientsByZipCode();
+    zips.value = zipdata;
+    zipLabels.value = zipdata.map((item) => item._id)
+    zipChartData.value = zipdata.map((item) => item.count)
+  } catch (err) {
+    zipError.value = describeError(err)
+  }
+  zipLoading.value = false
+}
+
+// clicking an event row opens that event's details
+function editEvent(eventID) {
+  router.push({ name: 'eventdetails', params: { id: eventID } })
+}
+
+// method called to format the event date
+function formatDate(date) {
+  const isoDate = new Date(date);
+  const year = isoDate.getUTCFullYear();
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(isoDate.getUTCDate()).padStart(2, '0');
+  return `${month}/${day}/${year}`;
+}
+
+onMounted(() => {
+  getAttendanceData()
+  getZipData()
+})
 </script>
