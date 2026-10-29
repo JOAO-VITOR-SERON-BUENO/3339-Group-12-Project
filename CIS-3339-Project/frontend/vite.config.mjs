@@ -14,6 +14,8 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
+    // public path the app is served from - '/' locally, '/<repo>/' on GitHub Pages (set by the deploy workflow)
+    base: process.env.BASE_PATH || '/',
     plugins: [vue()],
     resolve: {
       alias: {
