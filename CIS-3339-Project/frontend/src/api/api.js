@@ -1,8 +1,27 @@
 // This file contains all API calls to the API endpoints
-// import axios to make API calls
 import axios from "axios";
+import { useLoggedInUserStore } from "@/store/loggedInUser";
+import router from "@/router";
 
-// Create HTTP client with the base URL, and specify that the data sent in the request body is JSON
+//  decode JWT and check if it's expired
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(decodedJson);
+    
+    // Check expiration (exp is in seconds, Date.now() is in milliseconds)
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false; // Expired
+    }
+    return true;
+  } catch (e) {
+    return false; // Malformed token
+  }
+}
+
+// Create HTTP client with the base URL and JSON content type
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_ROOT_API,
   headers: {
@@ -10,98 +29,97 @@ const apiClient = axios.create({
   },
 });
 
-// Centralized handling for all API responses
+// Restore token from localStorage on initialization if present
+const savedToken = localStorage.getItem("authToken");
+if (savedToken && isTokenValid(savedToken)) {
+  apiClient.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+} else if (savedToken) {
+  // Discard expired or tampered tokens so they don't cause crashes
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("user");
+}
+
+// Centralized Axios response interceptor for error handling and 401 redirects
 apiClient.interceptors.response.use(
-  // Successful response: return it unchanged
   (response) => response,
-
-  // Failed response: create one readable error message
   (error) => {
-    let message = "Unable to complete the request";
-
+    // Check if the backend is unreachable
     if (!error.response) {
-      message = "Unable to reach the server";
-    } else {
-      const serverData = error.response.data;
+      return Promise.reject(new Error("Unable to reach the server"));
+    }
 
-      if (typeof serverData === "string") {
-        message = serverData;
-      } else if (typeof serverData?.error === "string") {
-        message = serverData.error;
-      } else if (typeof serverData?.message === "string") {
-        message = serverData.message;
-      } else if (Array.isArray(serverData?.errors)) {
-        message =
-          serverData.errors[0]?.msg ||
-          serverData.errors[0]?.message ||
-          message;
+    const { status, data } = error.response;
+
+    // Handle 401 Unauthorized: clear session and redirect to login
+    if (status === 401) {
+      localStorage.removeItem("authToken");
+      delete apiClient.defaults.headers.common["Authorization"];
+      try {
+        // reset the Pinia login state so the nav updates
+        useLoggedInUserStore().$patch({ name: "", role: "", isLoggedIn: false });
+      } catch (e) {
+        // if store isn't initialized yet
+      }
+      if (router.currentRoute.value.name !== "Login") {
+        router.push({ name: "Login" });
       }
     }
 
-    return Promise.reject(new Error(message));
+    // Extract one readable error message
+    let errorMessage = "Unable to complete the request";
+    if (typeof data === "string") {
+      errorMessage = data;
+    } else if (typeof data?.error === "string") {
+      errorMessage = data.error;
+    } else if (typeof data?.message === "string") {
+      errorMessage = data.message;
+    } else if (Array.isArray(data?.errors)) {
+      errorMessage =
+        data.errors[0]?.msg ||
+        data.errors[0]?.message ||
+        errorMessage;
+    }
+
+    return Promise.reject(new Error(errorMessage));
   }
 );
 
 // Login related API calls
-// If user logs in successfully, this login sets a header to "apiClient" called "Authorization" with the value of "Bearer <token>" This security token is used to validate API calls
-function setAuthHeader(token) {
-  apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-
-// When user logs out, this function removes the Authorization header from apiClient
-function removeAuthHeader() {
-  delete apiClient.defaults.headers.common["Authorization"];
-}
-
-// API call to log the user in
-
 export async function loginUser(username, password) {
   const response = await apiClient.post("/users/login", {
     username,
     password,
   });
-
   const token = response.data.token;
-
   localStorage.setItem("authToken", token);
-  setAuthHeader(token);
-
+  apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   return token;
 }
 
-
-// API call to log the user out
 export function logoutUser() {
   localStorage.removeItem("authToken");
-  removeAuthHeader();
+  delete apiClient.defaults.headers.common["Authorization"];
 }
 
 // Org related API calls
-// API call to get org name
 export async function getOrgName() {
   const response = await apiClient.get(`/org`);
   return response.data;
 }
 
-
 // Events related API calls
-
-// Get all events
 export const getEvents = async () => {
   const response = await apiClient.get("/events/");
   return response.data;
 };
 
-// Get a single event by ID
 export const getEventById = async (id) => {
   const response = await apiClient.get(`/events/id/${id}`);
   return response.data;
 };
 
-// Search events
 export const searchEvents = async (query) => {
   let params = {};
-
   if (query.searchBy === "name") {
     params.searchBy = query.searchBy;
     params.name = query.name || "";
@@ -109,117 +127,85 @@ export const searchEvents = async (query) => {
     params.searchBy = "date";
     params.eventDate = query.eventDate || "";
   }
-
-  const response = await apiClient.get("/events/search", {
-    params: params,
-  });
-
+  const response = await apiClient.get(`/events/search`, { params });
   return response.data;
 };
 
-// Get events a client is registered for
 export const getClientEvents = async (id) => {
   const response = await apiClient.get(`/events/client/${id}`);
   return response.data;
 };
 
-// Get events a client is not registered for
 export const getNonClientEvents = async (id) => {
-  const response = await apiClient.get(
-    `/events/client/${id}/not-registered`
-  );
+  const response = await apiClient.get(`/events/client/${id}/not-registered`);
   return response.data;
 };
 
-// Get event attendees
 export const getEventAttendees = async (id) => {
   const response = await apiClient.get(`/events/attendees/${id}`);
   return response.data;
 };
 
-// Get events associated with a service
 export const getEventsByServiceId = async (id) => {
   const response = await apiClient.get(`/events/service/${id}`);
   return response.data;
 };
 
-// Create event
 export const createEvent = async (eventData) => {
   const response = await apiClient.post("/events/", eventData);
   return response.data;
 };
 
-// Update event
 export const updateEvent = async (id, eventData) => {
-  const response = await apiClient.put(
-    `/events/update/${id}`,
-    eventData
-  );
+  const response = await apiClient.put(`/events/update/${id}`, eventData);
   return response.data;
 };
 
-// Register client for event
 export const registerAttendee = async (eventId, clientId) => {
   const response = await apiClient.put(
-    "/events/register",
+    `/events/register`,
     {},
     {
-      params: {
-        event: eventId,
-        client: clientId,
-      },
+      params: { event: eventId, client: clientId },
     }
   );
-
   return response.data;
 };
 
-// Deregister client from event
 export const deregisterAttendee = async (eventId, clientId) => {
   const response = await apiClient.put(
-    "/events/deregister",
+    `/events/deregister`,
     {},
     {
-      params: {
-        event: eventId,
-        client: clientId,
-      },
+      params: { event: eventId, client: clientId },
     }
   );
-
   return response.data;
 };
 
-// Delete event
 export const deleteEvent = async (id) => {
   const response = await apiClient.delete(`/events/${id}`);
   return response.data;
 };
 
-// Get recent event attendance for dashboard
 export const getAttendance = async () => {
   const response = await apiClient.get("/events/attendance");
   return response.data;
 };
 
-
 // Clients related API calls
-// API call to GET all clients for org
 export const getClients = async () => {
   const response = await apiClient.get("clients");
   return response.data;
 };
 
-// API call to GET single client by ID
 export const getClientById = async (id) => {
   const response = await apiClient.get(`/clients/id/${id}`);
   return response.data;
 };
 
-// API call to GET entries based on search query
 export const searchClients = async (query) => {
   let params = {};
-
   if (query.searchBy === "name") {
     params.searchBy = query.searchBy;
     params.firstName = query.firstName || "";
@@ -228,96 +214,66 @@ export const searchClients = async (query) => {
     params.searchBy = query.searchBy;
     params.phoneNumber = query.phoneNumber || "";
   }
-
-  const response = await apiClient.get("/clients/search", {
-    params: params,
-  });
-
+  const response = await apiClient.get("/clients/search", { params });
   return response.data;
 };
 
-// API call to POST new client
 export const createClient = async (newClient) => {
   const response = await apiClient.post("/clients", newClient);
   return response.data;
 };
 
-// API call to PUT update client
 export const updateClient = async (id, updatedClient) => {
-  const response = await apiClient.put(
-    `/clients/update/${id}`,
-    updatedClient
-  );
+  const response = await apiClient.put(`/clients/update/${id}`, updatedClient);
   return response.data;
 };
 
-// API call to delete client
 export const deleteClientbyId = async (id) => {
   const response = await apiClient.delete(`/clients/${id}`);
   return response.data;
 };
-
-// API call to get events for dashboard
 
 export const getClientsByZipCode = async () => {
   const response = await apiClient.get("/clients/byzip");
   return response.data;
 };
 
-
-// API calls related to services
-// API call to get all services for org
+// Services related API calls
 export const getServices = async () => {
   const response = await apiClient.get("/services/");
   return response.data;
 };
 
-// API call to GET single service by ID
 export const getServiceById = async (id) => {
   const response = await apiClient.get(`/services/id/${id}`);
   return response.data;
 };
 
-// API call to GET services based on search query
-
 export const searchServices = async (query) => {
   let params = {};
-
   params.searchBy = query.searchBy;
-
   if (query.searchBy === "name") {
     params.name = query.name || "";
   } else if (query.searchBy === "description") {
     params.description = query.description;
   }
-
-  const response = await apiClient.get("/services/search", {
-    params: params,
-  });
-
+  const response = await apiClient.get("/services/search", { params });
   return response.data;
 };
-
-
-// API call to POST new service
 
 export const createService = async (newService) => {
   const response = await apiClient.post("/services", newService);
   return response.data;
 };
 
-
-// API call to PUT update service
 export const updateService = async (id, updatedService) => {
-  const response = await apiClient.put(
-    `/services/update/${id}`,
-    updatedService
-  );
+  const response = await apiClient.put(`/services/update/${id}`, updatedService);
   return response.data;
 };
 
-// API call to DELETE service by ID
 export const deleteService = async (id) => {
   const response = await apiClient.delete(`/services/${id}`);
   return response.data;
 };
+
+export default apiClient;
