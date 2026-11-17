@@ -46,7 +46,4 @@ function requireRole(role) {
   };
 }
 
-// the default export stays requireAuth so existing `require('../auth/authMiddleWare')` callers keep working
-module.exports = requireAuth;
-module.exports.requireAuth = requireAuth;
-module.exports.requireRole = requireRole;
+module.exports = { requireAuth, requireRole };

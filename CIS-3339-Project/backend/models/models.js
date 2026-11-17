@@ -189,7 +189,8 @@ const serviceDataSchema = new Schema(
     }
   },
   {
-    collection: 'services'
+    collection: 'services',
+    timestamps: true
   }
 );
 
