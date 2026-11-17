@@ -4,7 +4,7 @@
   "description": "Dataplatform backend API",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "db:init": "node scripts/initDb.js",
@@ -24,8 +24,24 @@
     "eslint": "^8.47.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^10.4.3",
     "nodemon": "^2.0.22",
-    "prettier": "^3.0.2"
+    "prettier": "^3.0.2",
+    "supertest": "^7.3.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/setup/env.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup/quietLogs.js"
+    ],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "testTimeout": 30000
   },
   "eslintConfig": {
     "root": true,
