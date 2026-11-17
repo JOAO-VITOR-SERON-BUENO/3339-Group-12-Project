@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 // import bcrypt for comparing password to hashed password
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 // import JWT (JSON Web Token) to create a web token to the user after a successful login - allows user to make API calls
 const jwt = require('jsonwebtoken');
 
