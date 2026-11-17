@@ -1,0 +1,44 @@
+# Runs the backend test suite (jest + supertest against an in-memory MongoDB) whenever
+# backend code changes. The tests never touch the team's real database.
+name: Backend tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'CIS-3339-Project/backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'CIS-3339-Project/backend/**'
+      - '.github/workflows/backend-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CIS-3339-Project/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CIS-3339-Project/backend/package-lock.json
+
+      # mongodb-memory-server downloads a MongoDB binary on first use; cache it between runs
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('CIS-3339-Project/backend/package-lock.json') }}
+
+      - run: npm ci
+
+      - run: npm test
