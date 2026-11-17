@@ -345,7 +345,8 @@ async function removeClientFromEvent(clientId, eventId) {
   // remove client ID from the "attendees" array for that event
   try {
     const response = await deregisterAttendee(eventId, clientId);
-    toast.success(response)
+    // the API answers with { message } (e.g. "Not registered" if the client was already removed)
+    toast.success(response.message)
   } catch (error) {
     toast.error(error);
   }
