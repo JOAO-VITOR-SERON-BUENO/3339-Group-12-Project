@@ -31,7 +31,10 @@ app.use(cors(corsOptions));
 mongoose.set('strictQuery', false);
 
 app.use(express.json());
-app.use(morgan('dev'));
+// request logging is skipped under `npm test` so the test report stays readable
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
 
 app.get('/health', (req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
