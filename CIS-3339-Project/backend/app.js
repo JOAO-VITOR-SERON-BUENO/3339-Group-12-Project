@@ -4,58 +4,78 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
-
 const cors = require('cors');
-// allow using a .env file
-require('dotenv').config(); //require the dotenv
 
-// creates a new instance of express application
+require('dotenv').config();
+
 const app = express();
 
-// add cors header to the server
-app.use(
-  cors({
-    origin: '*'
-  })
-);
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(origin => origin.trim());
 
-// suppress mongoose warning to prepare for new version
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false); 
+    }
+  },
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
 mongoose.set('strictQuery', false);
 
-// sets up mongoose for the mongoDB connection
-mongoose
-  .connect(process.env.MONGO_URL)
-  .then(() => {
-    console.log('Database connection Success!');
-  })
-  .catch((err) => {
-    console.error('Mongo Connection Error', err);
-  });
-
-// declare port number for the api
-const PORT = process.env.PORT || 3000;
-
-// setup and access request body
 app.use(express.json());
 app.use(morgan('dev'));
 
-// setup middle ware for routes
+app.get('/health', (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.json({
+    status: 'ok',
+    db: dbConnected ? 'connected' : 'disconnected'
+  });
+});
+
 app.use('/clients', require('./routes/clients'));
 app.use('/events', require('./routes/events'));
 app.use('/org', require('./routes/org'));
 app.use('/services', require('./routes/services'));
 app.use('/users', require('./routes/users'));
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+// 3. JSON 404 for unknown routes
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Not found' });
 });
 
-// error handler
 app.use(function (err, req, res, next) {
-  // logs error and error code to console
-  console.error(err.message, req);
-  if (!err.statusCode) {
-    err.statusCode = 500;
+  console.error(err);
+
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Internal server error';
+
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors).map(e => e.message).join(', ');
+  } else if (err.name === 'CastError') {
+    statusCode = 400;
+    message = `Invalid ${err.path}`;
+  } else if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Malformed JSON body';
+  } else if (err.code === 11000) {
+    statusCode = 409;
+    message = 'Duplicate value';
+  } else if (!err.statusCode) {
+    statusCode = 500;
+    message = 'Internal server error';
   }
-  res.status(err.statusCode).send(err.message);
+
+  res.status(statusCode).json({ error: message });
 });
+
+module.exports = app;
