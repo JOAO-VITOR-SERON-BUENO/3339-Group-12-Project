@@ -30,7 +30,8 @@ const userDataSchema = new Schema(
     },
     username: {
       type: String,
-      required: true
+      required: true,
+      lowercase: true
     },
     password: {
       type: String,
@@ -42,13 +43,15 @@ const userDataSchema = new Schema(
     },
     org: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'org'
+      ref: 'org',
+      required: true
     }
   },
   {
     collection: 'users'
   }
 );
+userDataSchema.index({ username: 1, org: 1 }, { unique: true });
 
 // collection for clients
 const clientDataSchema = new Schema(
@@ -108,6 +111,7 @@ const clientDataSchema = new Schema(
     collection: 'clients'
   }
 );
+clientDataSchema.index({ orgs: 1 });
 
 // collection for events
 const eventDataSchema = new Schema(
@@ -118,7 +122,8 @@ const eventDataSchema = new Schema(
     },
     org: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true
+      required: true,
+      ref: 'org'
     },
     name: {
       type: String,
@@ -165,6 +170,7 @@ const eventDataSchema = new Schema(
     collection: 'events'
   }
 );
+eventDataSchema.index({ org: 1, date: -1 });
 
 // collection for services
 const serviceDataSchema = new Schema(
@@ -185,7 +191,8 @@ const serviceDataSchema = new Schema(
     },
     org: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'org'
+      ref: 'org',
+      required: true
     }
   },
   {
@@ -193,6 +200,7 @@ const serviceDataSchema = new Schema(
     timestamps: true
   }
 );
+serviceDataSchema.index({ org: 1, name: 1 }, { unique: true });
 
 // create models from mongoose schemas
 const clients = mongoose.model('clients', clientDataSchema);
