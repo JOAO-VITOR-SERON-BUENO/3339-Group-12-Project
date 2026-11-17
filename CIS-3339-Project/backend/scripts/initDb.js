@@ -44,7 +44,6 @@ async function initDb() {
 
     const targetOrgs = [primaryOrgId, secondaryOrgId];
 
-    // Handle --reset flag
     if (isReset) {
       console.warn('WARNING: --reset flag detected. Deleting seeded org data...');
       await Client.deleteMany({ orgs: { $in: targetOrgs } });
