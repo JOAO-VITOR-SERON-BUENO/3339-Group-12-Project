@@ -251,9 +251,31 @@ the frontend tests inside the Pages workflow.
 
 ## Deployment
 
+### Deployment used for grading
+
+The graded setup runs **both parts from this repository on the grader's machine, against the shared
+course database on MongoDB Atlas**. Nothing else has to be installed or hosted:
+
+| Part | How it runs | URL |
+| --- | --- | --- |
+| Database | MongoDB Atlas cluster, already initialized with `npm run db:init` | `MONGO_URL` in the committed `backend/.env` |
+| Backend | `cd CIS-3339-Project/backend`, `npm install`, `npm start` | http://localhost:3000 (check `/health`) |
+| Frontend (production build) | `cd CIS-3339-Project/frontend`, `npm install`, `npm run build`, `npm run preview` | http://localhost:4173 |
+
+The committed `frontend/.env` points the build at `http://localhost:3000`, and the committed
+`CORS_ORIGIN` allows `http://localhost:4173` (production preview) and `http://localhost:5173` (dev server),
+so this works with no configuration changes. Log in as `admin` / `admin` or `user` / `user`.
+
+The sections below describe the static hosting the frontend also has (GitHub Pages), and the documented
+path for hosting the backend in production (Render). The backend is **not** currently hosted. See
+[Known limitations](#known-limitations).
+
 ### Frontend: GitHub Pages
 
 **Hosting used:** GitHub Pages, at https://joao-vitor-seron-bueno.github.io/3339-Group-12-Project/
+
+The Pages site shows the deployed production build (routing, SPA fallback, asset paths). Logging in there
+needs a hosted backend. Until one is set up (see below), use the local setup above.
 
 - The workflow [`.github/workflows/deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) tests and
   builds the frontend on every push or pull request to `dev` or `main` that changes
@@ -268,9 +290,11 @@ the frontend tests inside the Pages workflow.
   shows the right page. Other hosts need an equivalent rewrite to `index.html`. See the
   [Frontend README](CIS-3339-Project/frontend/README.md#spa-fallback-required-for-static-hosting).
 
-### Backend: Render web service
+### Backend: Render web service (production path)
 
-> **Backend URL:** `https://<service-name>.onrender.com` *(fill in after the service is created)*
+These are the steps for hosting the backend so that the Pages site can log in. They are not required for
+grading, and the backend is not currently hosted. In the steps below, `<service-name>` is the name you
+choose when creating the service. Render gives the service the URL `https://<service-name>.onrender.com`.
 
 1. Create a free account at https://render.com and choose **New > Web Service**. Connect this GitHub
    repository.
@@ -350,7 +374,10 @@ the frontend tests inside the Pages workflow.
   is fine for the seed data, but slow with thousands of records.
 - **One organization per backend instance.** Users of another org need a separate instance with their own
   `ORG_ID` (see the isolation demo).
-- **Free-tier cold starts.** A free Render service sleeps after about 15 minutes without traffic. The next
+- **The backend is not hosted.** The graded setup runs the backend locally against Atlas (see
+  [Deployment used for grading](#deployment-used-for-grading)), so the GitHub Pages site can't log in until
+  the backend is deployed by following the Render steps.
+- **Free-tier cold starts (if deployed to Render).** A free Render service sleeps after about 15 minutes without traffic. The next
   request can take up to about a minute while it starts, and the frontend may briefly show
   "Unable to reach the server". Open `/health` first before a demo.
 - **`npm run db:reset` deletes data** for both seeded orgs in whatever database `MONGO_URL` points to,
