@@ -44,50 +44,13 @@
     </button>
   </div>
 
-  <!-- Empty state -->
-  <div
-    v-else-if="!services.length"
-    class="p-4 text-center text-gray-600"
-  >
-    No services found.
-  </div>
-
-  <!-- Existing Services table -->
-  <table v-else class="min-w-full shadow-md rounded">
-    <thead class="bg-gray-50 text-xl">
-      <tr>
-        <th class="p-4 text-left" style="width: 25%;">
-          Service Name
-        </th>
-        <th class="p-4 text-left" style="width: 75%;">
-          Service Description
-        </th>
-      </tr>
-    </thead>
-
-    <tbody class="divide-y divide-gray-300">
-      <tr
-        v-for="service in services"
-        :key="service._id"
-        @click="router.push({
-          name: 'servicedetails',
-          params: { id: service._id }
-        })"
-        class="cursor-pointer"
-        :class="{ hoverRow: hoverId === service._id }"
-        @mouseenter="hoverId = service._id"
-        @mouseleave="hoverId = null"
-      >
-        <td class="p-4 text-left">
-          {{ service.name }}
-        </td>
-
-        <td class="p-4 text-left text-sm">
-          {{ service.description }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Shared table: sorting, pagination, and the empty-results row -->
+  <DataTable
+    v-else
+    :columns="columns"
+    :rows="services"
+    empty-text="No services found."
+    @row-click="(row) => router.push({ name: 'servicedetails', params: { id: row._id } })" />
 
 </div>
 
@@ -102,6 +65,7 @@ import { useRouter } from 'vue-router'
 import { getServices, searchServices } from '../api/api'
 import { useApi } from '../composables/useApi'
 import SearchBar from '../components/SearchBar.vue'
+import DataTable from '../components/DataTable.vue'
 
 // Vue Router for navigating to service details
 const router = useRouter()
@@ -127,8 +91,11 @@ const searchFields = [
   }
 ]
 
-// Highlight the row under the mouse
-const hoverId = ref(null)
+// Columns for the shared DataTable
+const columns = [
+  { label: 'Service Name', key: 'name', width: '25%' },
+  { label: 'Service Description', key: 'description', width: '75%', class: 'text-sm' }
+]
 
 // Remember the last search for retries
 const currentQuery = ref(null)

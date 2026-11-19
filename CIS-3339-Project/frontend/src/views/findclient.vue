@@ -42,49 +42,13 @@
     </button>
   </div>
 
-  <!-- Empty state -->
-  <div
-    v-else-if="!clients || clients.length === 0"
-    class="p-4 text-center text-gray-600"
-  >
-    No clients found.
-  </div>
-
-  <!-- Existing clients table -->
-  <table v-else class="min-w-full shadow-md rounded">
-    <thead class="bg-gray-50 text-xl">
-      <tr>
-        <th class="p-4 text-left">Name</th>
-        <th class="p-4 text-left">Phone number</th>
-        <th class="p-4 text-left">City</th>
-      </tr>
-    </thead>
-
-    <tbody class="divide-y divide-gray-300">
-      <tr
-        v-for="client in clients"
-        :key="client._id"
-        @click="router.push({
-          name: 'clientdetails',
-          params: { id: client._id }
-        })"
-        class="cursor-pointer"
-        :class="{ hoverRow: hoverId === client._id }"
-        @mouseenter="hoverId = client._id"
-        @mouseleave="hoverId = null"
-      >
-        <td class="p-2 text-left">
-          {{ client.firstName + ' ' + client.lastName }}
-        </td>
-        <td class="p-2 text-left">
-          {{ client.phoneNumber?.primary }}
-        </td>
-        <td class="p-2 text-left">
-          {{ client.address?.city }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Shared table: sorting, pagination, and the empty-results row -->
+  <DataTable
+    v-else
+    :columns="columns"
+    :rows="clients"
+    empty-text="No clients found."
+    @row-click="(row) => router.push({ name: 'clientdetails', params: { id: row._id } })" />
 </div>
     </div>
   </main>
@@ -97,6 +61,7 @@ import { useRouter } from 'vue-router'
 import { getClients, searchClients } from '../api/api'
 import { useApi } from '../composables/useApi'
 import SearchBar from '../components/SearchBar.vue'
+import DataTable from '../components/DataTable.vue'
 
 // Navigation
 const router = useRouter()
@@ -127,8 +92,17 @@ const searchFields = [
   }
 ]
 
-// Highlight the row the mouse is hovering over
-const hoverId = ref(null)
+// Columns for the shared DataTable
+const columns = [
+  {
+    label: 'Name',
+    key: 'name',
+    render: (client) => `${client.firstName} ${client.lastName}`,
+    sortValue: (client) => `${client.lastName} ${client.firstName}`
+  },
+  { label: 'Phone number', key: 'phoneNumber.primary' },
+  { label: 'City', key: 'address.city' }
+]
 
 // Keep track of the current request.
 // Null means load all clients instead of searching.

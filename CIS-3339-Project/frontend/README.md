@@ -194,7 +194,8 @@ workflow merged to `main`).
 
 ## Tests
 
-Unit tests for the `useApi` composable use [Vitest](https://vitest.dev/):
+Unit tests use [Vitest](https://vitest.dev/). They cover the `useApi` composable (success and failure) and the
+`DataTable` sorting and pagination helpers (`src/components/dataTableUtils.js`):
 
     npx vitest run
 
