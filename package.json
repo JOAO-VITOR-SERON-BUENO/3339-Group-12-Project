@@ -1,0 +1,9 @@
+{
+  "name": "3339-Group-12-Project",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "npm --prefix CIS-3339-Project/backend test",
+    "test:frontend": "npm --prefix CIS-3339-Project/frontend test"
+  }
+}
