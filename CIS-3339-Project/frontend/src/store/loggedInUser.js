@@ -65,7 +65,9 @@ export const useLoggedInUserStore = defineStore({
         role: "",
         isLoggedIn: false
       });
-      this.$router.push("/");
+      // go straight to the login page; pushing "/" while already on the dashboard is a
+      // duplicate navigation, so the auth guard never ran and the dashboard stayed on screen
+      this.$router.push({ name: "Login" });
       toast.info("You have been logged out!")
     }
   },
