@@ -44,43 +44,13 @@
     </button>
   </div>
 
-  <!-- Empty state -->
-  <div
-    v-else-if="!events.length"
-    class="p-4 text-center text-gray-600"
-  >
-    No events found.
-  </div>
-
-  <!-- Events table -->
-  <table v-else class="min-w-full shadow-md rounded">
-    <thead class="bg-gray-50 text-xl">
-      <tr>
-        <th class="p-4 text-left">Event Name</th>
-        <th class="p-4 text-left">Event Date</th>
-        <th class="p-4 text-left">Event Address</th>
-      </tr>
-    </thead>
-
-    <tbody class="divide-y divide-gray-300">
-      <tr
-        v-for="event in events"
-        :key="event._id"
-        @click="router.push({
-          name: 'eventdetails',
-          params: { id: event._id }
-        })"
-        class="cursor-pointer"
-        :class="{ hoverRow: hoverId === event._id }"
-        @mouseenter="hoverId = event._id"
-        @mouseleave="hoverId = null"
-      >
-        <td class="p-2 text-left">{{ event.name }}</td>
-        <td class="p-2 text-left">{{ formatDate(event.date) }}</td>
-        <td class="p-2 text-left">{{ event.address?.line1 }}</td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Shared table: sorting, pagination, and the empty-results row -->
+  <DataTable
+    v-else
+    :columns="columns"
+    :rows="events"
+    empty-text="No events found."
+    @row-click="(row) => router.push({ name: 'eventdetails', params: { id: row._id } })" />
 
 </div>
 
@@ -95,6 +65,7 @@ import { useRouter } from 'vue-router'
 import { getEvents, searchEvents } from '../api/api'
 import { useApi } from '../composables/useApi'
 import SearchBar from '../components/SearchBar.vue'
+import DataTable from '../components/DataTable.vue'
 
 // Navigation
 const router = useRouter()
@@ -120,8 +91,17 @@ const searchFields = [
   }
 ]
 
-// Currently highlighted event row
-const hoverId = ref(null)
+// Columns for the shared DataTable (dates sort by their real value, not the MM/DD/YYYY text)
+const columns = [
+  { label: 'Event Name', key: 'name' },
+  {
+    label: 'Event Date',
+    key: 'date',
+    render: (event) => formatDate(event.date),
+    sortValue: (event) => new Date(event.date)
+  },
+  { label: 'Event Address', key: 'address.line1' }
+]
 
 // Stores the search criteria for retries
 const currentQuery = ref(null)
