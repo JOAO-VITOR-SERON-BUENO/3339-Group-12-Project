@@ -41,7 +41,7 @@ precedence over the file.
 | `PORT` | Port to listen on (`3000`). |
 | `ORG_ID` | ObjectId of the organization this instance serves. Login only accepts users of this org, and `GET /org` returns its name. |
 | `JWT_SECRET` | Secret for signing and verifying JWTs. Tokens expire after 30 days. |
-| `CORS_ORIGIN` | Comma-separated list of allowed browser origins (default `http://localhost:5173`). Add `http://localhost:4173` for `npm run preview`, and the deployed frontend's origin in production. |
+| `CORS_ORIGIN` | Comma-separated list of allowed browser origins (committed: `http://localhost:5173,http://localhost:4173` for `npm run dev` and `npm run preview`; default if unset: `http://localhost:5173`). Add the deployed frontend's origin in production. |
 | `SEED_VIEWER_USERNAME`, `SEED_VIEWER_PASSWORD` | Viewer account created by `db:init` (`user` / `user`). |
 | `SEED_EDITOR_USERNAME`, `SEED_EDITOR_PASSWORD` | Editor account created by `db:init` (`admin` / `admin`). |
 
@@ -61,7 +61,7 @@ precedence over the file.
    - users `user` (viewer), `admin` (editor), and `partner` (viewer in the second org, with the viewer
      password). Passwords are hashed with bcrypt. If a demo account already exists with a different
      password or role, it is reset to match `.env`.
-   - 16 services, 16 clients, and 16 events in the main org (8 past events with 1-3 attendees each), and one
+   - 15 services, 16 clients, and 16 events in the main org (8 past events with 1-3 attendees each), and one
      service, client, and registered event in the second org
 4. **Prints a summary** (`created: N   already present: M` for each collection) and the demo logins.
 

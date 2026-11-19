@@ -122,10 +122,9 @@ right page, but the HTTP status of that first response is 404. No other host fil
 
 - The browser calls the backend **directly** at `VITE_ROOT_API`, so the frontend and backend are usually
   on different origins and the backend must allow cross-origin requests.
-- The backend currently enables CORS for every origin (`cors({ origin: '*' })` in `backend/app.js`).
-  That works because the frontend authenticates with an `Authorization: Bearer <token>` header, not cookies.
-- If the backend is changed to restrict CORS to a specific origin (for example a `CORS_ORIGIN` variable),
-  that value must be the **exact origin of the deployed frontend** - scheme, host, and port, with no path
+- The backend only allows the origins listed in its `CORS_ORIGIN` variable (`backend/.env`; the committed
+  value is `http://localhost:5173,http://localhost:4173`).
+- Each listed value must be the **exact origin of the frontend** - scheme, host, and port, with no path
   or trailing slash (e.g. `https://my-frontend.example.com`, or `http://localhost:4173` for `npm run preview`,
   `http://localhost:5173` for `npm run dev`). The `Authorization` and `Content-Type` request headers must be
   allowed.
