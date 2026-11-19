@@ -97,7 +97,7 @@ over the file (dotenv never overrides them). This is how the examples below over
 | `PORT` | `3000` | Port the API listens on. Hosts such as Render set their own `PORT`, which takes precedence. |
 | `ORG_ID` | `64e0380b3cc28d087655693b` | The organization this backend instance serves. Login only accepts users of this org, and `db:init` creates the org with this ID. |
 | `JWT_SECRET` | random 64-hex-character string | Secret used to sign and verify login tokens. Changing it logs everyone out. |
-| `CORS_ORIGIN` | `http://localhost:5173` | Comma-separated list of browser origins allowed to call the API (exact scheme, host, and port, with no path or trailing slash). Default: `http://localhost:5173`. See [CORS](#cors). |
+| `CORS_ORIGIN` | `http://localhost:5173,http://localhost:4173` | Comma-separated list of browser origins allowed to call the API (exact scheme, host, and port, with no path or trailing slash). Default: `http://localhost:5173`. See [CORS](#cors). |
 | `SEED_VIEWER_USERNAME` / `SEED_VIEWER_PASSWORD` | `user` / `user` | Viewer account created by `db:init`. |
 | `SEED_EDITOR_USERNAME` / `SEED_EDITOR_PASSWORD` | `admin` / `admin` | Editor account created by `db:init`. |
 
@@ -124,7 +124,7 @@ the problems and exits with code `1` before connecting. Then it creates whatever
 - the organization `ORG_ID` ("Community Health Center") and a second organization
   `64e0380b3cc28d087655694c` ("Outreach Partner Org") for the isolation demo
 - the demo users below, with bcrypt-hashed passwords
-- 16 services, 16 clients, and 16 events in the main org (events run from 50 days ago to 25 days ahead, and
+- 15 services, 16 clients, and 16 events in the main org (events run from 50 days ago to 25 days ahead, and
   the first 8 have registered attendees, so the dashboard has data), plus one service, client, and event in
   the second org
 - the unique indexes declared in the models
@@ -243,16 +243,8 @@ rules, and the error shape and `/health`. Results on the verification run: front
 33/33 passed.
 
 **Using the production build with the local backend.** `npm run preview` serves from
-`http://localhost:4173`, which the committed `CORS_ORIGIN` does not allow. Start the backend with both
-origins:
-
-```powershell
-$env:CORS_ORIGIN = 'http://localhost:5173,http://localhost:4173'; npm start   # PowerShell
-```
-
-```bash
-CORS_ORIGIN=http://localhost:5173,http://localhost:4173 npm start            # bash
-```
+`http://localhost:4173`. The committed `CORS_ORIGIN` allows both `http://localhost:5173` (dev server) and
+`http://localhost:4173` (production preview), so `npm start` works with either one without any override.
 
 CI runs both test suites: [`backend-tests.yml`](.github/workflows/backend-tests.yml) on backend changes, and
 the frontend tests inside the Pages workflow.
@@ -363,8 +355,8 @@ the frontend tests inside the Pages workflow.
   "Unable to reach the server". Open `/health` first before a demo.
 - **`npm run db:reset` deletes data** for both seeded orgs in whatever database `MONGO_URL` points to,
   including the shared course database.
-- **The committed `CORS_ORIGIN` only allows `http://localhost:5173`.** Override it for `npm run preview` or a
-  deployed frontend (see above).
+- **The committed `CORS_ORIGIN` only allows the two local origins** (`5173` and `4173`). A deployed frontend
+  needs its origin added on the backend host (see [Backend: Render web service](#backend-render-web-service)).
 - **`VITE_ROOT_API` is fixed at build time.** One build targets exactly one backend.
 - Role checks in the frontend are for UX only. The backend enforces them on every request.
 - On GitHub Pages, a direct visit or refresh of a nested route returns HTTP 404 (via `404.html`), even
