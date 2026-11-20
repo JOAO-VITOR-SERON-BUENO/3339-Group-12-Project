@@ -229,13 +229,15 @@ The full endpoint list is in the [Backend README](CIS-3339-Project/backend/READM
 cd CIS-3339-Project/frontend
 npm run build      # production bundle in frontend/dist
 npm run preview    # serve the production build at http://localhost:4173
-npx vitest run     # frontend unit tests (useApi success/failure, DataTable sorting and pagination)
+npm test           # frontend unit tests (useApi success/failure, DataTable sorting and pagination)
 ```
 
 ```bash
 cd CIS-3339-Project/backend
 npm test           # backend tests: Jest + Supertest against an in-memory MongoDB
 ```
+
+To run both suites at once, run `npm test` from the repository root.
 
 The backend tests never touch the real database. They cover login and the `401`/`403` rules
 (a viewer gets `403` and an editor succeeds on the same route), organization isolation, the B1 registration
